@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "azsubay"
+version = "0.1.0"
+description = "AZsubay: Unified SDK for payments, KYC, and USSD integrations"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+  { name = "AZsubay", email = "AZsubay@protonmail.com" }
+]
+keywords = ["mobile money", "fintech", "KYC", "USSD", "SDK"]
+requires-python = ">=3.9"
+dependencies = [
+  "fastapi>=0.70",
+  "requests>=2.25", 
+  "pydantic>=1.10",
+  "cryptography>=3.4"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/azsubay/azsubay"
+Documentation = "https://azsubay.com/docs"
+Repository = "https://github.com/azsubay/azsubay.git"
+"Bug Tracker" = "https://github.com/azsubay/azsubay/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["azsubay*"]
+exclude = ["tests*"]
