@@ -1,4 +1,15 @@
 include README.md
 include LICENSE
 include pyproject.toml
-recursive-include AZsubay *.py
+include setup.cfg
+include MANIFEST.in
+include CHANGELOG.md
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include example_usage.py
+recursive-include azsubay *.py
+recursive-include .github *.yml
+recursive-include test *.py
+exclude .gitignore
+exclude .vscode
+exclude *.egg-info
