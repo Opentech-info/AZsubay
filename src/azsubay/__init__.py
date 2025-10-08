@@ -47,7 +47,7 @@ def get_supported_services():
 def get_info():
     """Get package information."""
     return {
-        'name': 'AZsubay',
+        'name': 'azsubay',
         'version': __version__,
         'author': __author__,
         'email': __email__,

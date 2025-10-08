@@ -372,6 +372,9 @@ def verify_webhook(payload: Union[str, bytes], signature: str, secret: Optional[
         # Convert payload to bytes if it's a string, assuming UTF-8
         if isinstance(payload, str):
             payload = payload.encode('utf-8')
+        # If it's a dict (common from frameworks like FastAPI), serialize it consistently
+        elif isinstance(payload, dict):
+            payload = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
         
         # Use the centralized signature generation for consistency.
         expected_signature = generate_hmac_signature(payload, webhook_secret, 'sha256')

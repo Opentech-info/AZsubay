@@ -174,11 +174,11 @@ def test_b2c_payout_oauth_error(requests_mock, monkeypatch):
 
 def test_verify_webhook_valid_signature():
     """Test valid webhook signature verification."""
-    payload = b'{"event": "payment_success", "amount": 100}'
-    secret = "test_webhook_secret"
-    # Generated using hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
-    signature = "f4931a5472e3a1712a1f1141724072346914c622544253308331163428251234"
+    from azsubay.utils.crypto import generate_signature
 
+    payload = {"event": "payment_success", "amount": 100}
+    secret = "test_webhook_secret"
+    signature = generate_signature(payload, secret)
     assert verify_webhook(payload, signature, secret=secret) is True
 
 

@@ -11,7 +11,7 @@ where = ["src"]
 [project]
 name = "azsubay"
 version = "0.1.0"
-authors = [ { name = "AZsubay", email = "AZsubay@protonmail.com" } ]
+authors = [ { name = "azsubay", email = "AZsubay@protonmail.com" } ]
 description = "AZsubay: Unified SDK for payments, KYC, and USSD integrations"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -117,3 +117,4 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "--cov=azsubay --cov-report=html --cov-report=term-missing"
+pythonpath = ["src"]
