@@ -2,39 +2,53 @@
 requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+license-files = ["LICENSE"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [project]
 name = "azsubay"
 version = "0.1.0"
+authors = [ { name = "AZsubay", email = "AZsubay@protonmail.com" } ]
 description = "AZsubay: Unified SDK for payments, KYC, and USSD integrations"
 readme = "README.md"
-license = {file = "LICENSE"}
-authors = [
-  { name = "AZsubay", email = "AZsubay@protonmail.com" }
-]
-keywords = ["mobile money", "fintech", "KYC", "USSD", "SDK"]
 requires-python = ">=3.9"
-dependencies = [
-  "fastapi>=0.70",
-  "requests>=2.25", 
-  "pydantic>=1.10",
-  "cryptography>=3.4"
-]
+license = { text = "MIT" }
+keywords = ["mobile money", "fintech", "KYC", "USSD", "SDK", "payments", "verification"]
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Security :: Cryptography",
+]
+dependencies = [ # Corresponds to install_requires
+    "fastapi>=0.70",
+    "requests>=2.25",
+    "pydantic>=1.10",
+    "cryptography>=3.4",
+    "redis>=4.3",
 ]
 
 [project.urls]
-Homepage = "https://github.com/Opentech-info"
+Homepage = "https://github.com/Opentech-info/AZsubay.git"
 Documentation = "https://azsubay.com/docs"
-Repository = "https://github.com/Opentech-info/AZsubay.git"
+Source = "https://github.com/Opentech-info/AZsubay.git"
 "Bug Tracker" = "https://github.com/Opentech-info/AZsubay/issues"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["azsubay*"]
-exclude = ["tests*"]
+[project.scripts]
+azsubay = "azsubay.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -45,17 +59,17 @@ dev = [
     "flake8>=5.0",
     "mypy>=0.991",
     "build>=0.8",
-    "twine>=4.0"
+    "twine>=4.0",
 ]
 test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "requests-mock>=1.0"
+    "requests-mock>=1.0",
+    "fakeredis>=2.0.0",
 ]
 
 [tool.black]
 line-length = 88
-target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -81,7 +95,21 @@ known_first_party = ["azsubay"]
 python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = "E203, W503"
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+    ".tox",
+    ".venv",
+    ".mypy_cache",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["test"]

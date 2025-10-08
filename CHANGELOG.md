@@ -7,17 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Initial release preparation
-- Complete package structure with payments, KYC, USSD, and utils modules
-- Comprehensive test suite
-- CLI interface for package management
-- CI/CD pipeline with GitHub Actions
-- Documentation and examples
-
 ## [0.1.0] - 2025-01-28
 
 ### Added
+- **Initial Release**: First public version of the `azsubay` SDK.
 - **Payments Module**: 
   - Basic payment processing (`send_payment`)
   - STK Push functionality (`stk_push`)

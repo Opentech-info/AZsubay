@@ -118,7 +118,7 @@ def generate_signature(data: Union[str, bytes, Dict[str, Any]], secret_key: str,
         elif isinstance(data, bytes):
             data_bytes = data
         else:
-            raise SignatureError(f"Unsupported data type: {type(data)}")
+            raise SignatureError(f"Unsupported data type for signing: {type(data)}")
         
         # Get hash function
         hash_func = _get_hash_function(algorithm)
@@ -165,7 +165,7 @@ def verify_signature(data: Union[str, bytes, Dict[str, Any]], signature: str, se
             raise SignatureError("Secret key is required")
         
         if not signature:
-            raise SignatureError("Signature is required")
+            raise SignatureError("Signature string is required")
         
         # Generate expected signature
         expected_signature = generate_signature(data, secret_key, algorithm)
@@ -208,7 +208,7 @@ def hash_data(data: Union[str, bytes], algorithm: str = 'sha256', salt: Optional
         elif isinstance(data, bytes):
             data_bytes = data
         else:
-            raise CryptoError(f"Unsupported data type: {type(data)}")
+            raise CryptoError(f"Unsupported data type for hashing: {type(data)}")
         
         # Add salt if provided
         if salt:
@@ -230,13 +230,14 @@ def hash_data(data: Union[str, bytes], algorithm: str = 'sha256', salt: Optional
         raise CryptoError(f"Hash generation failed: {e}")
 
 
-def encrypt_data(data: Union[str, bytes], password: Union[str, bytes], salt_b64: Optional[str] = None) -> Dict[str, str]:
+def encrypt_data(data: Union[str, bytes], password: Optional[Union[str, bytes]] = None, key: Optional[bytes] = None, salt_b64: Optional[str] = None) -> Dict[str, str]:
     """
     Encrypt data using AES-256-GCM with password-based key derivation.
     
     Args:
         data: Data to encrypt (string or bytes)
-        password: Password for encryption
+        password: Password for encryption (if key is not provided)
+        key: 32-byte encryption key (if password is not provided)
         salt_b64: Optional base64-encoded salt (generates new if not provided)
     
     Returns:
@@ -249,8 +250,8 @@ def encrypt_data(data: Union[str, bytes], password: Union[str, bytes], salt_b64:
     logger.info("Encrypting data with AES-256-GCM")
     
     try:
-        if not password:
-            raise EncryptionError("Password is required")
+        if not password and not key:
+            raise EncryptionError("Either password or key must be provided")
         
         # Convert data to bytes
         if isinstance(data, str):
@@ -258,31 +259,33 @@ def encrypt_data(data: Union[str, bytes], password: Union[str, bytes], salt_b64:
         elif isinstance(data, bytes):
             data_bytes = data
         else:
-            raise EncryptionError(f"Unsupported data type: {type(data)}")
-        
-        # Convert password to bytes if it's a string
-        if isinstance(password, str):
-            password_bytes = password.encode('utf-8')
-        elif isinstance(password, bytes):
-            password_bytes = password
-        else:
-            raise EncryptionError(f"Unsupported password type: {type(password)}")
-        
-        # Generate or use provided salt
-        if salt_b64:
-            salt = base64.b64decode(salt_b64)
-        else:
-            salt = os.urandom(32)
-        
-        # Derive key using PBKDF2
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,  # 256 bits
-            salt=salt,
-            iterations=100000,
-            backend=default_backend()
-        )
-        key = kdf.derive(password_bytes)
+            raise EncryptionError(f"Unsupported data type for encryption: {type(data)}")
+
+        salt = None
+        if password:
+            # Convert password to bytes if it's a string
+            if isinstance(password, str):
+                password_bytes = password.encode('utf-8')
+            elif isinstance(password, bytes):
+                password_bytes = password
+            else:
+                raise EncryptionError(f"Unsupported password type: {type(password)}. Must be str or bytes.")
+            
+            # Generate or use provided salt
+            if salt_b64:
+                salt = base64.b64decode(salt_b64)
+            else:
+                salt = os.urandom(32)
+            
+            # Derive key using PBKDF2
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,  # 256 bits
+                salt=salt,
+                iterations=100000,
+                backend=default_backend()
+            )
+            key = kdf.derive(password_bytes)
         
         # Generate random IV
         iv = os.urandom(16)
@@ -303,7 +306,7 @@ def encrypt_data(data: Union[str, bytes], password: Union[str, bytes], salt_b64:
         result = {
             'encrypted_data': base64.b64encode(encrypted_data).decode('utf-8'),
             'iv': base64.b64encode(iv).decode('utf-8'),
-            'salt': base64.b64encode(salt).decode('utf-8'),
+            'salt': base64.b64encode(salt).decode('utf-8') if salt else '',
             'tag': base64.b64encode(tag).decode('utf-8'),
             'algorithm': 'aes-256-gcm',
             'kdf': 'pbkdf2-sha256'
@@ -319,45 +322,55 @@ def encrypt_data(data: Union[str, bytes], password: Union[str, bytes], salt_b64:
         raise EncryptionError(f"Data encryption failed: {e}")
 
 
-def decrypt_data(encrypted_data_b64: str, iv_b64: str, password: str, salt_b64: str, tag_b64: str) -> bytes:
+def decrypt_data(encrypted_data_b64: str, iv_b64: str, tag_b64: str, password: Optional[str] = None, key: Optional[bytes] = None, salt_b64: Optional[str] = None) -> bytes:
     """
     Decrypt data using AES-256-GCM with password-based key derivation.
     
     Args:
         encrypted_data_b64: Base64-encoded encrypted data
         iv_b64: Base64-encoded initialization vector
-        password: Password for decryption
-        salt_b64: Base64-encoded salt
         tag_b64: Base64-encoded authentication tag
+        password: Password for decryption (if key is not provided)
+        key: 32-byte decryption key (if password is not provided)
+        salt_b64: Base64-encoded salt (required if using password)
     
     Returns:
         bytes: Decrypted data
     
     Example:
-        >>> decrypted = decrypt_data(encrypted["encrypted_data"], encrypted["iv"], "my_password", encrypted["salt"], encrypted["tag"])
+        >>> decrypted = decrypt_data(encrypted["encrypted_data"], encrypted["iv"], encrypted["tag"], password="my_password", salt_b64=encrypted["salt"])
         >>> print(f"Decrypted: {decrypted.decode('utf-8')}")
     """
     logger.info("Decrypting data with AES-256-GCM")
     
     try:
-        if not password:
-            raise EncryptionError("Password is required")
+        if not password and not key:
+            raise EncryptionError("Either key or password with salt must be provided")
         
         # Decode base64 components
         encrypted_data = base64.b64decode(encrypted_data_b64)
         iv = base64.b64decode(iv_b64)
-        salt = base64.b64decode(salt_b64)
         tag = base64.b64decode(tag_b64)
         
-        # Derive key using PBKDF2
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,  # 256 bits
-            salt=salt,
-            iterations=100000,
-            backend=default_backend()
-        )
-        key = kdf.derive(password.encode('utf-8'))
+        if password:
+            # This check must happen before trying to use the password
+            if not isinstance(password, (str, bytes)):
+                raise EncryptionError(f"Unsupported password type: {type(password)}. Must be str or bytes.")
+            if isinstance(password, str):
+                password = password.encode('utf-8')
+
+            if not salt_b64:
+                raise EncryptionError("Salt is required when decrypting with a password")
+            salt = base64.b64decode(salt_b64)
+            # Derive key using PBKDF2
+            kdf = PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=32,  # 256 bits
+                salt=salt,
+                iterations=100000,
+                backend=default_backend()
+            )
+            key = kdf.derive(password)
         
         # Decrypt using AES-256-GCM
         cipher = Cipher(
@@ -429,7 +442,7 @@ def validate_phone_number(phone: str) -> bool:
     
     try:
         if not phone or not isinstance(phone, str):
-            return False
+            raise ValidationError("Phone number must be a non-empty string.")
         
         # Remove any spaces, dashes, or parentheses
         clean_phone = re.sub(r'[\s\-\(\)]', '', phone)
@@ -442,14 +455,16 @@ def validate_phone_number(phone: str) -> bool:
                 if clean_phone.startswith('07') or clean_phone.startswith('01'):
                     clean_phone = '+254' + clean_phone[1:]
                 else:
-                    return False
+                    raise ValidationError(f"Invalid local phone number format: {phone}")
+            elif clean_phone.isdigit() and len(clean_phone) > 9:
+                clean_phone = '+' + clean_phone
             else:
-                return False
+                raise ValidationError(f"Invalid phone number format: {phone}")
         
         # Remove the + and check if remaining is digits only
         digits_only = clean_phone[1:]
         if not digits_only.isdigit():
-            return False
+            raise ValidationError(f"Phone number contains non-digit characters after country code: {phone}")
         
         # Check length (typical African phone numbers are 12-15 digits with country code)
         if len(digits_only) < 11 or len(digits_only) > 15:
@@ -473,11 +488,13 @@ def validate_phone_number(phone: str) -> bool:
             '237',  # Cameroon
         ]
         
-        is_african = country_code in african_country_codes
+        if country_code not in african_country_codes:
+            raise ValidationError(f"Unsupported country code: {country_code} in {phone}")
         
-        logger.info(f"Phone validation result: {'Valid' if is_african else 'Invalid'}")
-        return is_african
+        return True
         
+    except ValidationError:
+        raise
     except Exception as e:
         logger.error(f"Phone validation failed: {e}")
         return False
@@ -507,7 +524,7 @@ def format_amount(amount: Union[int, float, str], currency: str = 'KES', locale:
             try:
                 amount_float = float(amount.replace(',', ''))
             except ValueError:
-                raise ValidationError(f"Invalid amount format: {amount}")
+                raise ValidationError(f"Invalid amount string format: {amount}")
         elif isinstance(amount, (int, float)):
             amount_float = float(amount)
         else:
@@ -528,22 +545,15 @@ def format_amount(amount: Union[int, float, str], currency: str = 'KES', locale:
         
         # Add currency symbol or code
         currency_symbols = {
-            'KES': 'KES',
-            'USD': '$',
-            'EUR': '€',
-            'GBP': '£',
-            'UGX': 'UGX',
-            'TZS': 'TZS',
-            'RWF': 'RWF',
-            'BIF': 'BIF',
-            'ZMW': 'ZMW',
-            'MWK': 'MWK'
+            'KES': 'KES', 'USD': 'USD', 'EUR': 'EUR', 'GBP': 'GBP',
+            'UGX': 'UGX', 'TZS': 'TZS', 'RWF': 'RWF', 'BIF': 'BIF',
+            'ZMW': 'ZMW', 'MWK': 'MWK'
         }
         
         symbol = currency_symbols.get(currency, currency)
         
         # Format based on locale conventions
-        if locale == 'en_KE' and currency == 'KES':
+        if locale.startswith('en_'):
             # Kenyan format: KES 1,500.50
             result = f"{symbol} {formatted_amount}"
         elif locale.startswith('en_') and currency in ['USD', 'EUR', 'GBP']:
@@ -590,7 +600,7 @@ def sanitize_input(input_str: str, max_length: int = 1000) -> str:
         return ""
     
     # Remove potentially dangerous characters
-    sanitized = re.sub(r'[<>"\']', '', input_str)
+    sanitized = re.sub(r'[<>"\'`]', '', input_str)
     
     # Truncate to max length
     if len(sanitized) > max_length:

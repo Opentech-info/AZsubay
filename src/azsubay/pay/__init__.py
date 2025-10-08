@@ -19,6 +19,7 @@ from .payments import (
     b2c_payout,
     verify_webhook,
     get_oauth_token,
+    get_config,
     PaymentError,
     WebhookError,
     AuthenticationError
@@ -31,6 +32,7 @@ __all__ = [
     'b2c_payout', 
     'verify_webhook',
     'get_oauth_token',
+    'get_config',
     'PaymentError',
     'WebhookError',
     'AuthenticationError'

@@ -30,7 +30,7 @@ This project and everyone participating in it is governed by the [AZsubay Code o
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/your-username/AZsubay.git
+   git clone https://github.com/Opentech-info/AZsubay.git
    cd AZsubay
    ```
 3. Add the original repository as upstream:

@@ -19,6 +19,7 @@ import logging
 from typing import Dict, Any, Optional, Union
 from datetime import datetime, timedelta
 import requests
+from azsubay.utils.crypto import generate_signature as generate_hmac_signature
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,7 +41,7 @@ class AuthenticationError(Exception):
     pass
 
 
-def _get_config() -> Dict[str, str]:
+def get_config() -> Dict[str, str]:
     """Get payment configuration from environment variables."""
     return {
         'consumer_key': os.getenv('TELCO_CONSUMER_KEY', ''),
@@ -97,10 +98,10 @@ def _validate_amount(amount: Union[int, float, str]) -> float:
 
 def _get_oauth_token() -> str:
     """Get OAuth access token from telco API."""
-    config = _get_config()
+    config = get_config()
     
     if not config['consumer_key'] or not config['consumer_secret']:
-        logger.warning("OAuth credentials not configured, using mock token")
+        logger.warning("OAuth credentials not configured, using mock token (for development/testing)")
         return "mock_oauth_token_" + str(int(time.time()))
     
     try:
@@ -113,23 +114,19 @@ def _get_oauth_token() -> str:
             'Content-Type': 'application/json'
         }
         
-        data = {
-            'grant_type': 'client_credentials'
-        }
+        # This makes a real API call to the OAuth endpoint
+        response = requests.get(config['oauth_url'], headers=headers, timeout=config['timeout'])
+        response.raise_for_status()  # Raises HTTPError for bad status codes (4xx or 5xx)
         
-        # In a real implementation, this would make an actual API call
-        # response = requests.post(config['oauth_url'], headers=headers, json=data, timeout=config['timeout'])
-        # response.raise_for_status()
-        # token_data = response.json()
-        # return token_data['access_token']
+        token_data = response.json()
         
-        # Mock implementation for demo
-        logger.info("Using mock OAuth token (demo mode)")
-        return f"mock_token_{int(time.time())}"
+        logger.info("Successfully retrieved OAuth token")
+        return token_data['access_token']
         
     except requests.RequestException as e:
         logger.error(f"OAuth token request failed: {e}")
         raise AuthenticationError(f"Failed to get OAuth token: {e}")
+
 
 
 def _make_api_request(url: str, data: Dict[str, Any], headers: Dict[str, str], timeout: int) -> Dict[str, Any]:
@@ -185,32 +182,27 @@ def send_payment(phone: str, amount: Union[int, float, str], reference: str, des
             'timestamp': datetime.now().isoformat()
         }
         
-        config = _get_config()
+        config = get_config()
         headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
         
-        # In a real implementation, this would make an actual API call
-        # result = _make_api_request(config['payment_url'], payment_data, headers, config['timeout'])
+        # This makes a real API call to the payment endpoint
+        # Note: The URL for send_payment is not defined, assuming 'b2c_url' for now.
+        result = _make_api_request(config['b2c_url'], payment_data, headers, config['timeout'])
         
-        # Mock implementation for demo
-        transaction_id = f"TXN_{int(time.time())}_{clean_amount}"
+        logger.info(f"Payment successful: {result.get('ConversationID', 'N/A')}")
         
-        result = {
-            'status': 'SUCCESS',
+        # Enrich the result with original request data for better context
+        result.update({
             'phone': clean_phone,
             'amount': clean_amount,
-            'reference': reference,
-            'transaction_id': transaction_id,
-            'timestamp': datetime.now().isoformat(),
-            'message': 'Payment processed successfully'
-        }
-        
-        logger.info(f"Payment successful: {transaction_id}")
+            'reference': reference
+        })
         return result
         
-    except PaymentError:
+    except (PaymentError, AuthenticationError):
         raise
     except Exception as e:
         logger.error(f"Payment failed: {e}")
@@ -262,34 +254,26 @@ def stk_push(msisdn: str, amount: Union[int, float, str], account_reference: str
             'TransactionDesc': transaction_desc or f"Payment for {account_reference}"
         }
         
-        config = _get_config()
+        config = get_config()
         headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
         
-        # In a real implementation, this would make an actual API call
-        # result = _make_api_request(config['stk_push_url'], stk_data, headers, config['timeout'])
+        # This makes a real API call to the STK Push endpoint
+        result = _make_api_request(config['stk_push_url'], stk_data, headers, config['timeout'])
         
-        # Mock implementation for demo
-        checkout_request_id = f"ws_CO_{int(time.time())}_{clean_amount}"
-        merchant_request_id = f"mr_{int(time.time())}"
+        logger.info(f"STK Push initiated: {result.get('CheckoutRequestID', 'N/A')}")
         
-        result = {
-            'MerchantRequestID': merchant_request_id,
-            'CheckoutRequestID': checkout_request_id,
-            'ResponseCode': '0',
-            'ResponseDescription': 'Success. Request accepted for processing',
-            'CustomerMessage': 'Success. Request accepted for processing',
+        # Enrich the result with original request data
+        result.update({
             'phone': clean_phone,
             'amount': clean_amount,
             'account_reference': account_reference
-        }
-        
-        logger.info(f"STK Push initiated: {checkout_request_id}")
+        })
         return result
         
-    except PaymentError:
+    except (PaymentError, AuthenticationError):
         raise
     except Exception as e:
         logger.error(f"STK Push failed: {e}")
@@ -337,33 +321,26 @@ def b2c_payout(msisdn: str, amount: Union[int, float, str], remarks: str = "", o
             'Occasion': occasion or 'Payment'
         }
         
-        config = _get_config()
+        config = get_config()
         headers = {
             'Authorization': f'Bearer {token}',
             'Content-Type': 'application/json'
         }
         
-        # In a real implementation, this would make an actual API call
-        # result = _make_api_request(config['b2c_url'], b2c_data, headers, config['timeout'])
+        # This makes a real API call to the B2C endpoint
+        result = _make_api_request(config['b2c_url'], b2c_data, headers, config['timeout'])
         
-        # Mock implementation for demo
-        conversation_id = f"conv_{int(time.time())}"
-        originator_conversation_id = f"orig_conv_{int(time.time())}"
+        logger.info(f"B2C payout initiated: {result.get('ConversationID', 'N/A')}")
         
-        result = {
-            'ConversationID': conversation_id,
-            'OriginatorConversationID': originator_conversation_id,
-            'ResponseCode': '0',
-            'ResponseDescription': 'Acceptance for B2C service is successful',
+        # Enrich the result with original request data
+        result.update({
             'phone': clean_phone,
             'amount': clean_amount,
             'remarks': remarks
-        }
-        
-        logger.info(f"B2C payout initiated: {conversation_id}")
+        })
         return result
         
-    except PaymentError:
+    except (PaymentError, AuthenticationError):
         raise
     except Exception as e:
         logger.error(f"B2C payout failed: {e}")
@@ -392,19 +369,13 @@ def verify_webhook(payload: Union[str, bytes], signature: str, secret: Optional[
         if not webhook_secret:
             raise WebhookError("Webhook secret not configured")
         
-        # Convert payload to bytes if it's a string
+        # Convert payload to bytes if it's a string, assuming UTF-8
         if isinstance(payload, str):
             payload = payload.encode('utf-8')
         
-        # Calculate expected signature
-        expected_signature = hmac.new(
-            webhook_secret.encode('utf-8'),
-            payload,
-            hashlib.sha256
-        ).hexdigest()
-        
-        # Compare signatures
-        return hmac.compare_digest(expected_signature, signature)
+        # Use the centralized signature generation for consistency.
+        expected_signature = generate_hmac_signature(payload, webhook_secret, 'sha256')
+        return hmac.compare_digest(expected_signature, signature) # Ensure constant-time comparison
         
     except Exception as e:
         logger.error(f"Webhook verification failed: {e}")

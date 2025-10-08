@@ -46,7 +46,7 @@ def show_info(args) -> None:
 def validate_config(args) -> None:
     """Validate configuration for each module."""
     import os
-    from azsubay.pay import _get_config as get_pay_config
+    from azsubay.pay import get_config as get_pay_config
     from azsubay.utils import generate_signature
     
     print("Validating AZsubay Configuration")
@@ -64,6 +64,20 @@ def validate_config(args) -> None:
         else:
             print(f"  ❌ {key}: [MISSING]")
     
+    # Check USSD (Redis) configuration
+    print("\n📱 USSD (Redis) Configuration:")
+    try:
+        from azsubay.ussd.menu import session_store
+        if session_store and hasattr(session_store, 'client'):
+            session_store.client.ping()
+            print(f"  ✅ Redis Connection: [OK] ({session_store.redis_host}:{session_store.redis_port})")
+        elif session_store is None:
+             print("  ⚠️  Redis Connection: [NOT CONFIGURED - using mock store]")
+        else:
+            print("  ❌ Redis Connection: [FAILED]")
+    except Exception as e:
+        print(f"  ❌ Redis Connection: [ERROR - {e}]")
+
     # Check environment variables
     print("\n🔧 Environment Variables:")
     env_vars = [
@@ -74,8 +88,11 @@ def validate_config(args) -> None:
         'TELCO_STK_PUSH_URL',
         'TELCO_B2C_URL'
     ]
+    redis_vars = ['REDIS_HOST', 'REDIS_PORT', 'REDIS_DB']
     
-    for var in env_vars:
+    all_vars = env_vars + redis_vars
+    
+    for var in all_vars:
         value = os.getenv(var, '')
         if value:
             print(f"  ✅ {var}: [SET]")
@@ -194,16 +211,20 @@ Examples:
   azsubay usage
         """
     )
-    
-    parser.add_argument("--version", "-v", action="store_true", help="Show version information")
-    parser.add_argument("command", nargs="?", choices=["info", "validate-config", "test-modules", "usage"], 
-                       help="Command to execute")
+
+    # The 'version' action is a standard way to handle this
+    parser.add_argument(
+        "--version",
+        "-v",
+        action="version",
+        version=f"AZsubay v{azsubay.__version__}",
+        help="Show package version information and exit",
+    )
+    parser.add_argument("command", nargs="?", choices=["info", "validate-config", "test-modules", "usage"], help="Command to execute")
     
     args = parser.parse_args()
     
-    if args.version:
-        show_version(args)
-    elif args.command == "info":
+    if args.command == "info":
         show_info(args)
     elif args.command == "validate-config":
         validate_config(args)

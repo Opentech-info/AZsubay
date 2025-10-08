@@ -1,10 +1,21 @@
 """
 Tests for AZsubay Utils Module
 """
+import os
 
 import pytest
 import base64
-from azsubay.utils import generate_signature, verify_signature, encrypt_data, decrypt_data
+import azsubay.utils.crypto
+from azsubay.utils import (
+    generate_signature,
+    verify_signature,
+    encrypt_data,
+    decrypt_data,
+    EncryptionError,
+    SignatureError,
+    CryptoError,
+    ValidationError,
+)
 
 def test_generate_signature():
     """Test HMAC signature generation."""
@@ -59,16 +70,43 @@ def test_different_algorithms():
     assert len(sha512_sig) == 128
     assert sha256_sig != sha512_sig
 
+def test_generate_signature_missing_secret_key():
+    """Test generate_signature with missing secret key."""
+    data = "test data"
+    with pytest.raises(SignatureError, match="Secret key is required"):
+        generate_signature(data, "")
+
+def test_generate_signature_unsupported_data_type():
+    """Test generate_signature with unsupported data type."""
+    data = 123  # Invalid type
+    secret_key = "secret_key"
+    with pytest.raises(SignatureError, match=r"Unsupported data type for signing: <class 'int'>"):
+        generate_signature(data, secret_key)
+
+def test_verify_signature_missing_signature_string():
+    """Test verify_signature with missing signature string."""
+    data = "test data"
+    secret_key = "secret_key"
+    with pytest.raises(SignatureError, match=r"Signature string is required"):
+        verify_signature(data, "", secret_key)
+
+def test_get_hash_function_unsupported_algorithm():
+    """Test _get_hash_function with an unsupported algorithm."""
+    with pytest.raises(CryptoError, match=r"Unsupported hash algorithm: invalid_algo"):
+        azsubay.utils.crypto._get_hash_function("invalid_algo")
+
 def test_encrypt_decrypt_with_key():
     """Test encryption and decryption with provided key."""
     data = "sensitive data"
     key = b'12345678901234567890123456789012'  # Exactly 32 bytes
     
-    encrypted = encrypt_data(data, key)
+    encrypted = encrypt_data(data, key=key)
     decrypted = decrypt_data(
         encrypted["encrypted_data"],
         encrypted["iv"],
-        key
+        encrypted["tag"],
+        key=key,
+        salt_b64=encrypted["salt"]
     )
     
     assert isinstance(encrypted, dict)
@@ -86,24 +124,51 @@ def test_encrypt_decrypt_with_password():
     decrypted = decrypt_data(
         encrypted["encrypted_data"],
         encrypted["iv"],
+        encrypted["tag"],
         password=password,
-        salt_b64=encrypted["salt"]
+        salt_b64=encrypted["salt"],
     )
     
     assert "salt" in encrypted
     assert decrypted.decode('utf-8') == data
 
+def test_encrypt_data_unsupported_data_type():
+    """Test encrypt_data with unsupported data type."""
+    with pytest.raises(EncryptionError, match="Unsupported data type for encryption"):
+        encrypt_data(123, password="password")
+
+def test_encrypt_data_unsupported_password_type():
+    """Test encrypt_data with unsupported password type."""
+    with pytest.raises(EncryptionError, match="Unsupported password type"):
+        encrypt_data("data", password=123)
+
+def test_decrypt_data_unsupported_password_type():
+    """Test decrypt_data with unsupported password type."""
+    encrypted = encrypt_data("data", password="password")
+    with pytest.raises(EncryptionError, match="Unsupported password type"):
+        decrypt_data(
+            encrypted["encrypted_data"],
+            encrypted["iv"],
+            encrypted["tag"],
+            password=123, # Invalid type
+            salt_b64=encrypted["salt"]
+        )
+
+
+
 def test_encrypt_decrypt_auto_key():
     """Test encryption and decryption with auto-generated key."""
     data = "sensitive data"
     
-    encrypted = encrypt_data(data)  # Auto-generates key
+    # This should fail because password/key is required
+    with pytest.raises(EncryptionError, match="Either password or key must be provided"):
+        encrypt_data(data)
     
-    # This should fail because we don't have the key
-    with pytest.raises(ValueError, match="Either key or password with salt must be provided"):
+    with pytest.raises(EncryptionError, match="Either key or password with salt must be provided"):
         decrypt_data(
-            encrypted["encrypted_data"],
-            encrypted["iv"]
+            "dummy_data",
+            "dummy_iv",
+            "dummy_tag"
         )
 
 def test_hash_data():
@@ -116,6 +181,27 @@ def test_hash_data():
     assert isinstance(hash_result, str)
     assert len(hash_result) == 64  # SHA256 default
     assert hash_result.isalnum()
+
+def test_hash_data_unsupported_data_type():
+    """Test hash_data with unsupported data type."""
+    from azsubay.utils.crypto import hash_data
+    with pytest.raises(CryptoError, match=r"Unsupported data type for hashing: <class 'int'>"):
+        hash_data(123)
+
+def test_hash_data_general_exception(monkeypatch):
+    """Test hash_data for general exceptions."""
+    def mock_get_hash_function(*args, **kwargs):
+        raise Exception("Simulated general error")
+
+    monkeypatch.setattr("azsubay.utils.crypto._get_hash_function", mock_get_hash_function)
+    from azsubay.utils.crypto import hash_data
+    with pytest.raises(CryptoError, match="Hash generation failed: Simulated general error"):
+        hash_data("test data")
+
+def test_hash_data_with_salt():
+    """Test hash_data with a salt."""
+    from azsubay.utils.crypto import hash_data
+    assert hash_data("data", salt="salt") != hash_data("data")
 
 def test_hash_data_different_algorithms():
     """Test hashing with different algorithms."""
@@ -149,24 +235,51 @@ def test_generate_secure_token_custom_length():
     assert isinstance(token, str)
     assert len(token) == 32  # 16 bytes * 2 (hex)
 
+def test_generate_secure_token_invalid_length():
+    """Test generate_secure_token with invalid length."""
+    from azsubay.utils.crypto import generate_secure_token
+    with pytest.raises(CryptoError, match="Token length must be positive"):
+        generate_secure_token(0)
+
+def test_generate_secure_token_general_exception(monkeypatch):
+    """Test generate_secure_token for general exceptions."""
+    def mock_token_hex(*args, **kwargs):
+        raise Exception("Simulated general error")
+
+    monkeypatch.setattr("secrets.token_hex", mock_token_hex)
+    from azsubay.utils.crypto import generate_secure_token
+    with pytest.raises(CryptoError, match="Token generation failed: Simulated general error"):
+        generate_secure_token(10)
+
 def test_validate_phone_number():
     """Test phone number validation."""
     from azsubay.utils.crypto import validate_phone_number
     
     # Valid phone numbers
-    assert validate_phone_number("0712345678") is True
-    assert validate_phone_number("+254712345678") is True
-    assert validate_phone_number("254712345678") is True
-    assert validate_phone_number("0112345678") is True
+    assert validate_phone_number("0712345678")
+    assert validate_phone_number("+254712345678")
+    assert validate_phone_number("254712345678") # Handled by adding '+'
+    assert validate_phone_number("0112345678")
+    assert validate_phone_number("+256771234567") # Uganda
+    assert validate_phone_number("+255712345678") # Tanzania
+    assert validate_phone_number("+2348012345678") # Nigeria
+    assert validate_phone_number("+233241234567") # Ghana
     
     # Invalid phone numbers
-    assert validate_phone_number("123") is False  # Too short
-    assert validate_phone_number("12345678901234567890") is False  # Too long
-    assert validate_phone_number("abc123") is False  # Contains letters
-    assert validate_phone_number("") is False  # Empty
+    with pytest.raises(ValidationError, match="Phone number must be a non-empty string."):
+        validate_phone_number("")
+    with pytest.raises(ValidationError, match="Phone number must be a non-empty string."):
+        validate_phone_number(None)
+    with pytest.raises(ValidationError, match="Invalid phone number format"):
+        validate_phone_number("123")  # Too short, no country code
+    with pytest.raises(ValidationError, match="Unsupported country code"):
+        validate_phone_number("+12345678901") # US country code
+    with pytest.raises(ValidationError, match="Phone number contains non-digit characters"):
+        validate_phone_number("+254712abc456")
 
 def test_format_amount():
     """Test amount formatting."""
+    from azsubay.utils.crypto import ValidationError
     from azsubay.utils.crypto import format_amount
     
     # Test with different amount types
@@ -176,12 +289,74 @@ def test_format_amount():
     assert format_amount("1000.5") == "KES 1,000.50"
     
     # Test with different currencies
-    assert format_amount(1000, "USD") == "USD 1,000.00"
+    assert format_amount(1000, "USD") == "USD 1,000.00" # Changed from $ to USD
     assert format_amount(1000, "EUR") == "EUR 1,000.00"
     
     # Test invalid amounts
-    assert format_amount("invalid") == "KES 0.00"
-    assert format_amount(None) == "KES 0.00"
+    with pytest.raises(ValidationError):
+        format_amount("invalid")
+    with pytest.raises(ValidationError):
+        format_amount(None) # type: ignore
+    with pytest.raises(ValidationError, match="Unsupported amount type"):
+        format_amount([100]) # type: ignore
+    with pytest.raises(ValidationError, match="Unsupported currency"):
+        format_amount(100, "XYZ")
+
+def test_format_amount_different_locales():
+    """Test amount formatting with different locales."""
+    from azsubay.utils.crypto import format_amount
+    assert format_amount(1000, "KES", "en_KE") == "KES 1,000.00"
+    assert format_amount(1000, "USD", "en_US") == "USD 1,000.00"
+    assert format_amount(1000, "EUR", "en_GB") == "EUR 1,000.00"
+    assert format_amount(1000, "KES", "fr_FR") == "1,000.00 KES" # Fallback
+
+def test_format_amount_general_exception(monkeypatch):
+    """Test format_amount for general exceptions."""
+    from azsubay.utils.crypto import format_amount
+    def mock_float(*args, **kwargs):
+        raise Exception("Simulated general error")
+
+    monkeypatch.setattr("builtins.float", mock_float)
+    with pytest.raises(ValidationError, match="Amount formatting failed: Simulated general error"):
+        format_amount(100)
+
+def test_generate_api_key():
+    """Test generate_api_key function."""
+    from azsubay.utils.crypto import generate_api_key
+    key = generate_api_key()
+    assert key.startswith("azsk_")
+    assert len(key) == 5 + (16 * 2)  # "azsk_" is 5 chars
+
+def test_generate_webhook_secret():
+    """Test generate_webhook_secret function."""
+    from azsubay.utils.crypto import generate_webhook_secret
+    secret = generate_webhook_secret()
+    assert secret.startswith("whsec_")
+    assert len(secret) == 6 + (24 * 2) # prefix + 24 bytes hex
+
+def test_validate_email():
+    """Test validate_email function."""
+    from azsubay.utils.crypto import validate_email
+    assert validate_email("test@example.com")
+    assert not validate_email("invalid-email")
+    assert not validate_email(None) # type: ignore
+
+def test_sanitize_input():
+    """Test sanitize_input function."""
+    from azsubay.utils.crypto import sanitize_input
+    assert sanitize_input("<script>alert('xss')</script>") == "scriptalert(xss)/script"
+    assert sanitize_input("normal text") == "normal text"
+    assert sanitize_input("a" * 1001) == "a" * 1000
+
+def test_generate_key_pair():
+    """Test generate_key_pair function."""
+    from azsubay.utils.crypto import generate_key_pair
+    key_pair = generate_key_pair()
+    assert "private_key" in key_pair
+    assert "public_key" in key_pair
+    assert len(key_pair["private_key"]) == 32 * 2
+    assert len(key_pair["public_key"]) == 32 * 2
+
 
 def test_import_structure():
     """Test that all expected functions can be imported."""
@@ -201,3 +376,22 @@ def test_import_structure():
     assert callable(generate_secure_token)
     assert callable(validate_phone_number)
     assert callable(format_amount)
+
+
+def test_utils_init_module_functions():
+    """Test functions exposed directly in azsubay.utils.__init__."""
+    from azsubay.utils import get_supported_currencies, get_default_hash_algorithm, get_supported_hash_algorithms, get_crypto_config
+
+    currencies = get_supported_currencies()
+    assert 'KES' in currencies
+    assert 'USD' in currencies
+
+    default_hash = get_default_hash_algorithm()
+    assert default_hash == 'sha256'
+
+    supported_hashes = get_supported_hash_algorithms()
+    assert 'sha256' in supported_hashes
+    assert 'md5' in supported_hashes
+
+    crypto_config = get_crypto_config()
+    assert crypto_config['token_length'] == 32

@@ -1,17 +1,17 @@
 # AZsubay
 
-AZsubay: Unified SDK for payments, KYC, and USSD integrations
+**AZsubay: The Unified SDK for African FinTech.**
 
 A comprehensive Python library that follows the big brand package structure with modular design for mobile money payments, KYC verification, and USSD services.
 
 ## Features
 
-- **🏗️ Professional Package Structure**: Single package with organized submodules (like Stripe, AWS SDK)
-- **💳 Mobile Money Operations**: STK Push, B2C payouts, and webhook verification
-- **🆔 KYC Integration**: Identity verification with multiple providers (SmileID, Veriff, Jumio)
-- **📱 USSD Services**: Complete menu navigation and session management
-- **🔐 Security Utilities**: Cryptographic operations, signature generation, and data encryption
-- **⚡ One-Install**: `pip install azsubay` gives you access to all modules
+*   **Modular Architecture**: A single, scalable package with distinct modules for `pay`, `kyc`, and `ussd`.
+*   **Comprehensive Payments**: Full support for mobile money operations, including STK Push, B2C payouts, and secure webhook handling.
+*   **Multi-Provider KYC**: Abstracted identity verification with built-in support for providers like SmileID, Veriff, and Jumio.
+*   **Stateful USSD Engine**: A complete framework for building and managing complex, Redis-backed USSD menu flows.
+*   **Robust Security**: Includes essential cryptographic utilities for signature generation, data encryption, and webhook validation.
+*   **Simple Installation**: Get access to the entire suite of tools with a single `pip install azsubay`.
 
 ## Installation
 
@@ -28,8 +28,8 @@ from azsubay.pay import send_payment
 
 # Simple payment (from the spec example)
 resp = send_payment("+255700000000", 5000, "INV123")
-print(resp)
-# Output: {'status': 'SUCCESS', 'phone': '+255700000000', 'amount': 5000, 'reference': 'INV123'}
+print(resp) # Mocked response
+# Output: {'ResponseCode': '0', 'phone': '+255700000000', 'amount': 5000.0, 'reference': 'INV123', ...}
 
 # Advanced STK Push
 from azsubay.pay import stk_push, b2c_payout
@@ -150,6 +150,22 @@ azsubay/
     ├── __init__.py
     └── crypto.py
 ```
+'''
+azsubay/
+├── __init__.py              ✅ Main package with branding & imports
+├── pay/                     ✅ Payments module
+│   ├── __init__.py          ✅ Payment exports & constants  
+│   └── payments.py          ✅ Core payment functionality
+├── kyc/                     ✅ KYC module
+│   ├── __init__.py          ✅ KYC exports & constants
+│   └── verify.py            ✅ Identity verification
+├── ussd/                    ✅ USSD module
+│   ├── __init__.py          ✅ USSD exports & constants
+│   └── menu.py              ✅ Menu navigation & sessions
+└── utils/                   ✅ Utils module
+    ├── __init__.py          ✅ Utils exports & constants
+    └── crypto.py            ✅ Cryptographic utilities
+'''    
 
 ## Usage Patterns
 
@@ -191,6 +207,11 @@ TELCO_B2C_URL=https://example-telco/b2c
 # Security Configuration
 WEBHOOK_SHARED_SECRET=your_webhook_secret
 WHITELISTED_IPS=127.0.0.1,192.168.1.1
+
+# USSD Session Configuration (Redis)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
 ```
 
 ## Requirements

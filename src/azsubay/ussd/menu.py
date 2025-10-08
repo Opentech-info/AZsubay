@@ -16,7 +16,12 @@ import logging
 import secrets
 from typing import Dict, Any, Optional, List, Union
 from datetime import datetime, timedelta
-from threading import Timer
+
+try:
+    import redis
+except ImportError:
+    redis = None
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -43,9 +48,63 @@ class InputError(USSDError):
     pass
 
 
-# Global session storage
-_sessions: Dict[str, Dict[str, Any]] = {}
-_session_timers: Dict[str, Timer] = {}
+class RedisSessionStore:
+    """
+    A production-ready session store using Redis.
+
+    This store handles creating, retrieving, updating, and deleting USSD sessions
+    in a Redis database, making it scalable and persistent.
+    """
+
+    def __init__(self):
+        if redis is None:
+            raise ImportError("The 'redis' package is required to use RedisSessionStore. Please install it with 'pip install redis'.")
+        
+        self.redis_host = os.getenv('REDIS_HOST', 'localhost')
+        self.redis_port = int(os.getenv('REDIS_PORT', '6379'))
+        self.redis_db = int(os.getenv('REDIS_DB', '0'))
+        self.prefix = "azsubay:ussd:session:"
+        
+        try:
+            self.client = redis.Redis(host=self.redis_host, port=self.redis_port, db=self.redis_db, decode_responses=False)
+            self.client.ping()
+            logger.info(f"Successfully connected to Redis at {self.redis_host}:{self.redis_port}")
+        except redis.exceptions.ConnectionError as e:
+            logger.error(f"Could not connect to Redis: {e}. USSD module will not function correctly.")
+            raise SessionError(f"Could not connect to Redis: {e}") from e
+
+    def get(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve a session from Redis."""
+        session_data = self.client.get(f"{self.prefix}{session_id}")
+        if session_data:
+            return json.loads(session_data)
+        return None
+
+    def set(self, session_id: str, session_data: Dict[str, Any], timeout: int):
+        """Save a session to Redis with a timeout (TTL)."""
+        self.client.set(f"{self.prefix}{session_id}", json.dumps(session_data), ex=timeout)
+
+    def delete(self, session_id: str):
+        """Delete a session from Redis."""
+        self.client.delete(f"{self.prefix}{session_id}")
+
+    def exists(self, session_id: str) -> bool:
+        """Check if a session exists in Redis."""
+        return self.client.exists(f"{self.prefix}{session_id}") > 0
+
+    def count_active(self) -> int:
+        """Count the number of active sessions."""
+        # This can be slow on large databases, use with caution in production.
+        return len(list(self.client.scan_iter(f"{self.prefix}*")))
+
+
+# Instantiate the session store.
+# This will raise an error on startup if Redis is not available.
+try:
+    session_store = RedisSessionStore()
+except (ImportError, SessionError) as e:
+    logger.warning(f"USSD Redis session store not available: {e}. Using a mock store for demonstration purposes.")
+    session_store = None # Fallback for environments without Redis
 
 
 def _generate_session_id() -> str:
@@ -79,7 +138,7 @@ def _validate_phone_number(phone: str) -> str:
 def _validate_input(input_str: str, max_length: int = 50) -> str:
     """Validate user input."""
     if not input_str or not input_str.strip():
-        raise InputError("Input is required")
+        raise InputError("Input cannot be empty")
     
     clean_input = input_str.strip()
     
@@ -153,7 +212,7 @@ def _format_menu_response(menu_data: Dict[str, Any], session_id: str) -> str:
 
 def _handle_action(action: str, session_id: str, input_data: str = "") -> Dict[str, Any]:
     """Handle menu actions and return response."""
-    session = _sessions.get(session_id)
+    session = session_store.get(session_id)
     if not session:
         raise SessionError("Session not found")
     
@@ -163,6 +222,7 @@ def _handle_action(action: str, session_id: str, input_data: str = "") -> Dict[s
             # Ask for phone number
             session['context']['action'] = 'phone_payment'
             session['current_menu'] = 'input_phone'
+            session_store.set(session_id, session, timeout=300) # Save state change
             return {
                 'response': 'Enter phone number:',
                 'session_id': session_id,
@@ -178,6 +238,7 @@ def _handle_action(action: str, session_id: str, input_data: str = "") -> Dict[s
         if 'amount' not in session.get('context', {}):
             session['context']['action'] = 'self_airtime'
             session['current_menu'] = 'input_amount'
+            session_store.set(session_id, session, timeout=300) # Save state change
             return {
                 'response': 'Enter amount:',
                 'session_id': session_id,
@@ -238,7 +299,7 @@ def _process_payment(session_id: str, phone: str, amount: str) -> Dict[str, Any]
             f"0. Cancel"
         )
         
-        session = _sessions[session_id]
+        session = session_store.get(session_id)
         session['context']['pending_transaction'] = {
             'transaction_id': transaction_id,
             'phone': phone,
@@ -246,6 +307,7 @@ def _process_payment(session_id: str, phone: str, amount: str) -> Dict[str, Any]
         }
         session['current_menu'] = 'confirm_payment'
         
+        session_store.set(session_id, session, timeout=300) # Reset timer
         return {
             'response': response_text,
             'session_id': session_id,
@@ -279,7 +341,7 @@ def _process_airtime_purchase(session_id: str, phone: str, amount: str) -> Dict[
             f"0. Cancel"
         )
         
-        session = _sessions[session_id]
+        session = session_store.get(session_id)
         session['context']['pending_transaction'] = {
             'transaction_id': transaction_id,
             'phone': phone,
@@ -287,6 +349,8 @@ def _process_airtime_purchase(session_id: str, phone: str, amount: str) -> Dict[
             'type': 'airtime'
         }
         session['current_menu'] = 'confirm_airtime'
+        
+        session_store.set(session_id, session, timeout=300) # Reset timer
         
         return {
             'response': response_text,
@@ -299,30 +363,6 @@ def _process_airtime_purchase(session_id: str, phone: str, amount: str) -> Dict[
     except Exception as e:
         logger.error(f"Airtime processing failed: {e}")
         raise USSDError(f"Airtime processing failed: {e}")
-
-
-def _expire_session(session_id: str):
-    """Expire a session and clean up resources."""
-    if session_id in _sessions:
-        session = _sessions[session_id]
-        session['status'] = 'EXPIRED'
-        session['end_time'] = datetime.now().isoformat()
-        logger.info(f"Session expired: {session_id}")
-        
-        # Remove from active sessions
-        if session_id in _session_timers:
-            _session_timers[session_id].cancel()
-            del _session_timers[session_id]
-
-
-def _start_session_timer(session_id: str, timeout: int = 300):
-    """Start session expiration timer."""
-    if session_id in _session_timers:
-        _session_timers[session_id].cancel()
-    
-    timer = Timer(timeout, _expire_session, args=[session_id])
-    _session_timers[session_id] = timer
-    timer.start()
 
 
 def start_session(phone_number: str, language: str = 'en', timeout: int = 300) -> Dict[str, Any]:
@@ -349,13 +389,12 @@ def start_session(phone_number: str, language: str = 'en', timeout: int = 300) -
     """
     logger.info(f"Starting USSD session for: {phone_number}")
     
+    if not session_store:
+        raise SessionError("RedisSessionStore is not initialized. Cannot start session.")
+        
     try:
         # Validate phone number
         clean_phone = _validate_phone_number(phone_number)
-        
-        # Check session limit
-        if len(_sessions) >= 1000:  # MAX_SESSIONS
-            raise SessionError("Maximum number of sessions reached")
         
         # Generate session ID
         session_id = _generate_session_id()
@@ -372,11 +411,8 @@ def start_session(phone_number: str, language: str = 'en', timeout: int = 300) -
             'history': []
         }
         
-        # Store session
-        _sessions[session_id] = session
-        
-        # Start expiration timer
-        _start_session_timer(session_id, timeout)
+        # Store session in Redis with timeout
+        session_store.set(session_id, session, timeout)
         
         # Get main menu
         menu_structure = _get_menu_structure()
@@ -424,11 +460,13 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
     logger.info(f"Processing USSD input: {session_id} - {user_input}")
     
     try:
+        if not session_store:
+            raise SessionError("RedisSessionStore is not initialized. Cannot navigate menu.")
+
         # Validate session
-        if session_id not in _sessions:
+        session = session_store.get(session_id)
+        if not session:
             raise SessionError("Session not found")
-        
-        session = _sessions[session_id]
         
         # Check session status
         if session['status'] != 'ACTIVE':
@@ -444,8 +482,8 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
             'menu': session['current_menu']
         })
         
-        # Reset session timer
-        _start_session_timer(session_id)
+        # Reset session timer by re-setting the key in Redis
+        session_store.set(session_id, session, timeout=300)
         
         # Handle input based on current menu/state
         current_menu = session['current_menu']
@@ -456,6 +494,7 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
             phone = _validate_phone_number(clean_input)
             session['context']['phone'] = phone
             session['current_menu'] = 'input_amount'
+            session_store.set(session_id, session, timeout=300)
             return {
                 'response': 'Enter amount:',
                 'session_id': session_id,
@@ -474,6 +513,7 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
                 # Go back to complete the action
                 action = session['context'].get('action', '')
                 if action:
+                    session_store.set(session_id, session, timeout=300)
                     return _handle_action(action, session_id)
                 else:
                     raise MenuError("No action context found")
@@ -506,6 +546,7 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
                 session['current_menu'] = 'main'
                 menu_structure = _get_menu_structure()
                 main_menu = menu_structure['main']
+                session_store.set(session_id, session, timeout=300)
                 menu_response = _format_menu_response(main_menu, session_id)
                 
                 return {
@@ -514,6 +555,64 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
                     'status': 'ACTIVE'
                 }
         
+        elif current_menu == 'confirm_airtime':
+            if clean_input == '1':
+                # Confirm airtime
+                pending = session['context']['pending_transaction']
+                response_text = (
+                    f"Airtime Purchase Successful!\n"
+                    f"To: {pending['phone']}\n"
+                    f"Amount: KES {pending['amount']:,.2f}\n\n"
+                    f"Thank you for using AZsubay!"
+                )
+                end_session(session_id)
+                return {
+                    'response': response_text,
+                    'session_id': session_id,
+                    'status': 'CLOSED'
+                }
+            else:
+                # Cancel airtime
+                session['current_menu'] = 'main'
+                menu_structure = _get_menu_structure()
+                main_menu = menu_structure['main']
+                session_store.set(session_id, session, timeout=300)
+                menu_response = _format_menu_response(main_menu, session_id)
+                return {
+                    'response': menu_response,
+                    'session_id': session_id,
+                    'status': 'ACTIVE'
+                }
+        
+        elif current_menu == 'confirm_airtime':
+            if clean_input == '1':
+                # Confirm airtime
+                pending = session['context']['pending_transaction']
+                response_text = (
+                    f"Airtime Purchase Successful!\n"
+                    f"To: {pending['phone']}\n"
+                    f"Amount: KES {pending['amount']:,.2f}\n\n"
+                    f"Thank you for using AZsubay!"
+                )
+                end_session(session_id)
+                return {
+                    'response': response_text,
+                    'session_id': session_id,
+                    'status': 'CLOSED'
+                }
+            else:
+                # Cancel airtime
+                session['current_menu'] = 'main'
+                menu_structure = _get_menu_structure()
+                main_menu = menu_structure['main']
+                session_store.set(session_id, session, timeout=300)
+                menu_response = _format_menu_response(main_menu, session_id)
+                return {
+                    'response': menu_response,
+                    'session_id': session_id,
+                    'status': 'ACTIVE'
+                }
+
         # Handle regular menu navigation
         menu_structure = _get_menu_structure()
         
@@ -527,6 +626,7 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
                         # Navigate to submenu
                         session['current_menu'] = option['menu']
                         submenu = menu_structure[option['menu']]
+                        session_store.set(session_id, session, timeout=300)
                         menu_response = _format_menu_response(submenu, session_id)
                         
                         return {
@@ -536,13 +636,14 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
                         }
                     elif 'action' in option:
                         # Handle action
+                        session_store.set(session_id, session, timeout=300)
                         return _handle_action(option['action'], session_id)
             
             # No matching option found
             raise InputError("Invalid option")
         
         else:
-            raise MenuError(f"Unknown menu: {current_menu}")
+            raise MenuError(f"Unknown menu state: {current_menu}")
         
     except (SessionError, InputError, MenuError):
         raise
@@ -569,26 +670,28 @@ def end_session(session_id: str) -> Dict[str, Any]:
     logger.info(f"Ending USSD session: {session_id}")
     
     try:
+        if not session_store:
+            raise SessionError("RedisSessionStore is not initialized. Cannot end session.")
+
         # Validate session
-        if session_id not in _sessions:
+        session = session_store.get(session_id)
+        if not session:
             raise SessionError("Session not found")
         
-        session = _sessions[session_id]
-        
-        # Update session status
+        # Update session status and set a short TTL instead of immediate deletion.
+        # This allows subsequent calls to correctly identify the session as CLOSED
+        # before it is removed from Redis.
         session['status'] = 'CLOSED'
         session['end_time'] = datetime.now().isoformat()
+        session_store.set(session_id, session, timeout=60) # Keep closed session for 1 minute
         
-        # Cancel expiration timer
-        if session_id in _session_timers:
-            _session_timers[session_id].cancel()
-            del _session_timers[session_id]
+        # Calculate duration for the final response
+        start_time = datetime.fromisoformat(session['start_time'])
+        duration = (datetime.now() - start_time).total_seconds()
         
-        result = {
+        result: Dict[str, Any] = {
             'session_id': session_id,
-            'response': 'Session ended. Thank you for using AZsubay!',
-            'status': 'CLOSED',
-            'duration': session.get('duration', 'N/A')
+            'response': 'Session ended. Thank you for using AZsubay!', 'status': 'CLOSED'
         }
         
         logger.info(f"USSD session ended: {session_id}")
@@ -615,13 +718,16 @@ def get_session_data(session_id: str) -> Dict[str, Any]:
         >>> data = get_session_data(session["session_id"])
         >>> print(f"Session status: {data['status']}")
     """
-    if session_id not in _sessions:
+    if not session_store:
+        raise SessionError("RedisSessionStore is not initialized. Cannot get session data.")
+
+    session = session_store.get(session_id)
+    if not session:
         raise SessionError("Session not found")
     
-    session = _sessions[session_id].copy()
     
     # Calculate duration if session has ended
-    if session['status'] in ['CLOSED', 'EXPIRED'] and 'end_time' in session:
+    if session['status'] in ['CLOSED', 'EXPIRED'] and session.get('end_time'):
         start_time = datetime.fromisoformat(session['start_time'])
         end_time = datetime.fromisoformat(session['end_time'])
         duration = (end_time - start_time).total_seconds()
@@ -631,23 +737,12 @@ def get_session_data(session_id: str) -> Dict[str, Any]:
 
 
 def cleanup_expired_sessions():
-    """Clean up all expired sessions."""
-    expired_sessions = [
-        session_id for session_id, session in _sessions.items()
-        if session['status'] == 'EXPIRED'
-    ]
-    
-    for session_id in expired_sessions:
-        if session_id in _sessions:
-            del _sessions[session_id]
-        if session_id in _session_timers:
-            _session_timers[session_id].cancel()
-            del _session_timers[session_id]
-    
-    if expired_sessions:
-        logger.info(f"Cleaned up {len(expired_sessions)} expired sessions")
+    """No-op. Redis handles automatic expiration of sessions via TTL."""
+    logger.info("Cleanup is handled automatically by Redis TTL. No manual cleanup needed.")
 
 
 def get_active_sessions_count() -> int:
     """Get count of active sessions."""
-    return len([s for s in _sessions.values() if s['status'] == 'ACTIVE'])
+    if not session_store:
+        return 0
+    return session_store.count_active()

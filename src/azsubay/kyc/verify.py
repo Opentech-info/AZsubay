@@ -98,7 +98,7 @@ def _validate_provider(provider: str) -> str:
 def _validate_user_id(user_id: str) -> str:
     """Validate user ID."""
     if not user_id or not user_id.strip():
-        raise VerificationError("User ID is required")
+        raise VerificationError("User ID cannot be empty")
     
     return user_id.strip()
 
@@ -106,7 +106,7 @@ def _validate_user_id(user_id: str) -> str:
 def _validate_document_type(document_type: str) -> str:
     """Validate document type."""
     if not document_type:
-        raise DocumentError("Document type is required")
+        raise DocumentError("Document type cannot be empty")
     
     valid_types = ['passport', 'id_card', 'drivers_license', 'residence_permit']
     if document_type.lower() not in [vt.lower() for vt in valid_types]:
@@ -126,7 +126,7 @@ def _validate_document_data(document_data: Dict[str, str]) -> Dict[str, str]:
     # Check required fields
     for field in required_fields:
         if field not in document_data or not document_data[field]:
-            raise DocumentError(f"Required field '{field}' is missing or empty")
+            raise DocumentError(f"Required field '{field}' is missing or empty.")
     
     # Validate base64 format for images
     for field in required_fields + optional_fields:
@@ -139,7 +139,7 @@ def _validate_document_data(document_data: Dict[str, str]) -> Dict[str, str]:
                 # Try to decode as base64 to validate format
                 base64.b64decode(document_data[field])
             except Exception:
-                raise DocumentError(f"Field '{field}' contains invalid base64 data")
+                raise DocumentError(f"Field '{field}' contains invalid base64 data.")
     
     return document_data
 
@@ -360,7 +360,7 @@ def check_status(provider: str, submission_id: str) -> Dict[str, Any]:
         clean_provider = _validate_provider(provider)
         
         if not submission_id or not submission_id.strip():
-            raise VerificationError("Submission ID is required")
+            raise VerificationError("Submission ID cannot be empty.")
         
         clean_submission_id = submission_id.strip()
         
