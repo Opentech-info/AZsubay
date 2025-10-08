@@ -132,40 +132,6 @@ decrypted = decrypt_data(
 print(f"Decrypted: {decrypted.decode('utf-8')}")
 ```
 
-## Package Structure
-
-```
-azsubay/
-├── __init__.py         # Branding, version, common imports
-├── pay/                # Payments module
-│   ├── __init__.py
-│   └── payments.py
-├── kyc/                # KYC/identity verification
-│   ├── __init__.py
-│   └── verify.py
-├── ussd/               # USSD flows
-│   ├── __init__.py
-│   └── menu.py
-└── utils/              # Shared helpers
-    ├── __init__.py
-    └── crypto.py
-```
-'''
-azsubay/
-├── __init__.py              ✅ Main package with branding & imports
-├── pay/                     ✅ Payments module
-│   ├── __init__.py          ✅ Payment exports & constants  
-│   └── payments.py          ✅ Core payment functionality
-├── kyc/                     ✅ KYC module
-│   ├── __init__.py          ✅ KYC exports & constants
-│   └── verify.py            ✅ Identity verification
-├── ussd/                    ✅ USSD module
-│   ├── __init__.py          ✅ USSD exports & constants
-│   └── menu.py              ✅ Menu navigation & sessions
-└── utils/                   ✅ Utils module
-    ├── __init__.py          ✅ Utils exports & constants
-    └── crypto.py            ✅ Cryptographic utilities
-'''    
 
 ## Usage Patterns
 
@@ -256,4 +222,4 @@ For support, please open an issue on the [GitHub repository](https://github.com/
 
 ---
 
-**AZsubay** - Professional mobile money & KYC integration for Africa 🚀
+**AZsubay** - Professional mobile money & KYC integration for Africa 
