@@ -103,6 +103,31 @@ def test_invalid_option():
         assert "Invalid option" in str(e)
 
 
+def test_navigate_to_balance_and_help():
+    """Test navigating to the check balance and help menus."""
+    session_start = start_session("+254712345678")
+    session_id = session_start["session_id"]
+
+    # Navigate to check balance
+    result = navigate_menu(session_id, "2")
+    assert "Your balance is:" in result["response"]
+    assert result["status"] == "ACTIVE"
+
+    # Navigate back to main from balance
+    result = navigate_menu(session_id, "0")
+    assert "Welcome to AZsubay:" in result["response"]
+
+    # Navigate to help
+    result = navigate_menu(session_id, "5") # My Account
+    result = navigate_menu(session_id, "4") # Help
+    assert "AZsubay USSD Help:" in result["response"]
+    assert result["status"] == "ACTIVE"
+
+    # Navigate back to main from help
+    result = navigate_menu(session_id, "0")
+    assert "Welcome to AZsubay:" in result["response"]
+
+
 def test_start_session_no_redis_store(monkeypatch):
     """Test start_session when RedisSessionStore is not initialized."""
     monkeypatch.setattr("azsubay.ussd.menu.session_store", None)
@@ -165,6 +190,20 @@ def test_navigate_menu_input_too_long():
     session_id = session_start["session_id"]
     with pytest.raises(InputError, match="Input too long"):
         navigate_menu(session_id, "a" * 51)
+
+
+def test_navigate_menu_invalid_amount_input():
+    """Test navigate_menu with invalid amount input."""
+    session_start = start_session("+254712345678")
+    session_id = session_start["session_id"]
+
+    # Navigate to amount input
+    navigate_menu(session_id, "1")  # Send Money
+    navigate_menu(session_id, "1")  # To Phone
+    navigate_menu(session_id, "+254787654321") # Phone
+
+    with pytest.raises(InputError, match="Invalid amount format"):
+        navigate_menu(session_id, "not-a-number")
 
 
 def test_navigate_menu_unknown_menu_state(monkeypatch):

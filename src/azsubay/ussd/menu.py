@@ -155,7 +155,7 @@ def _get_menu_structure() -> Dict[str, Dict[str, Any]]:
             'title': 'Welcome to AZsubay',
             'options': [
                 {'key': '1', 'text': 'Send Money', 'menu': 'payment'},
-                {'key': '2', 'text': 'Check Balance', 'menu': 'balance'},
+                {'key': '2', 'text': 'Check Balance', 'action': 'check_balance'},
                 {'key': '3', 'text': 'Buy Airtime', 'menu': 'airtime'},
                 {'key': '4', 'text': 'Pay Bill', 'menu': 'bill'},
                 {'key': '5', 'text': 'My Account', 'menu': 'account'}
@@ -251,6 +251,8 @@ def _handle_action(action: str, session_id: str, input_data: str = "") -> Dict[s
     
     elif action == 'check_balance':
         balance = "KES 15,750.50"  # Mock balance
+        session['current_menu'] = 'action_result'  # Set state to allow going back
+        session_store.set(session_id, session, timeout=300) # Save the state change
         return {
             'response': f'Your balance is: {balance}\n\n0. Main Menu',
             'session_id': session_id,
@@ -265,6 +267,8 @@ def _handle_action(action: str, session_id: str, input_data: str = "") -> Dict[s
             "• Sessions timeout after 5 minutes\n"
             "• For support call: 0800222111"
         )
+        session['current_menu'] = 'action_result' # Set state to allow going back
+        session_store.set(session_id, session, timeout=300) # Save the state change
         return {
             'response': f'{help_text}\n\n0. Main Menu',
             'session_id': session_id,
@@ -488,6 +492,21 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
         # Handle input based on current menu/state
         current_menu = session['current_menu']
         
+        # Global handler for "Back" from action results
+        if current_menu == 'action_result' and clean_input == '0':
+            session['current_menu'] = 'main'
+            menu_structure = _get_menu_structure()
+            main_menu = menu_structure['main']
+            session_store.set(session_id, session, timeout=300)
+            menu_response = _format_menu_response(main_menu, session_id)
+            
+            return {
+                'response': menu_response,
+                'session_id': session_id,
+                'status': 'ACTIVE'
+            }
+
+
         # Handle special input states
         if current_menu == 'input_phone':
             # Handle phone number input
@@ -584,35 +603,6 @@ def navigate_menu(session_id: str, user_input: str) -> Dict[str, Any]:
                     'status': 'ACTIVE'
                 }
         
-        elif current_menu == 'confirm_airtime':
-            if clean_input == '1':
-                # Confirm airtime
-                pending = session['context']['pending_transaction']
-                response_text = (
-                    f"Airtime Purchase Successful!\n"
-                    f"To: {pending['phone']}\n"
-                    f"Amount: KES {pending['amount']:,.2f}\n\n"
-                    f"Thank you for using AZsubay!"
-                )
-                end_session(session_id)
-                return {
-                    'response': response_text,
-                    'session_id': session_id,
-                    'status': 'CLOSED'
-                }
-            else:
-                # Cancel airtime
-                session['current_menu'] = 'main'
-                menu_structure = _get_menu_structure()
-                main_menu = menu_structure['main']
-                session_store.set(session_id, session, timeout=300)
-                menu_response = _format_menu_response(main_menu, session_id)
-                return {
-                    'response': menu_response,
-                    'session_id': session_id,
-                    'status': 'ACTIVE'
-                }
-
         # Handle regular menu navigation
         menu_structure = _get_menu_structure()
         
