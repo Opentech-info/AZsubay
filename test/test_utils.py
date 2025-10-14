@@ -2,20 +2,21 @@
 Tests for AZsubay Utils Module
 """
 
+import base64
 import os
 
 import pytest
-import base64
+
 import azsubay.utils.crypto
 from azsubay.utils import (
-    generate_signature,
-    verify_signature,
-    encrypt_data,
-    decrypt_data,
+    CryptoError,
     EncryptionError,
     SignatureError,
-    CryptoError,
     ValidationError,
+    decrypt_data,
+    encrypt_data,
+    generate_signature,
+    verify_signature,
 )
 
 
@@ -331,8 +332,7 @@ def test_validate_phone_number():
 
 def test_format_amount():
     """Test amount formatting."""
-    from azsubay.utils.crypto import ValidationError
-    from azsubay.utils.crypto import format_amount
+    from azsubay.utils.crypto import ValidationError, format_amount
 
     # Test with different amount types
     assert format_amount(1000) == "KES 1,000.00"
@@ -429,15 +429,15 @@ def test_generate_key_pair():
 def test_import_structure():
     """Test that all expected functions can be imported."""
     from azsubay.utils.crypto import (
-        generate_signature,
-        verify_signature,
-        generate_key_pair,
-        encrypt_data,
         decrypt_data,
-        hash_data,
-        generate_secure_token,
-        validate_phone_number,
+        encrypt_data,
         format_amount,
+        generate_key_pair,
+        generate_secure_token,
+        generate_signature,
+        hash_data,
+        validate_phone_number,
+        verify_signature,
     )
 
     # Test that functions are callable
@@ -455,10 +455,10 @@ def test_import_structure():
 def test_utils_init_module_functions():
     """Test functions exposed directly in azsubay.utils.__init__."""
     from azsubay.utils import (
-        get_supported_currencies,
-        get_default_hash_algorithm,
-        get_supported_hash_algorithms,
         get_crypto_config,
+        get_default_hash_algorithm,
+        get_supported_currencies,
+        get_supported_hash_algorithms,
     )
 
     currencies = get_supported_currencies()

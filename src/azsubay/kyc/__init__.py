@@ -12,24 +12,21 @@ Usage:
     from azsubay.kyc.verify import verify_identity, kyc_verify
 """
 
+# Import legacy functions for backward compatibility
 # Import main functions for easy access
 from .verify import (
-    verify_identity,
-    submit_documents,
-    check_status,
+    DocumentError,
     KYCError,
     ProviderError,
-    DocumentError,
     VerificationError,
-)
-
-# Import legacy functions for backward compatibility
-from .verify import (
-    kyc_verify,
-    kyc_submit,
+    check_status,
     kyc_status,
-    verify_user,
+    kyc_submit,
+    kyc_verify,
+    submit_documents,
     submit_kyc_documents,
+    verify_identity,
+    verify_user,
 )
 
 # Define what's available when using `from azsubay.kyc import *`

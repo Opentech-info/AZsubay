@@ -6,15 +6,16 @@ import os
 
 import pytest
 import requests_mock
+
 from azsubay.pay import (
+    AuthenticationError,
+    PaymentError,
+    WebhookError,
+    b2c_payout,
+    get_oauth_token,
     send_payment,
     stk_push,
-    b2c_payout,
     verify_webhook,
-    get_oauth_token,
-    PaymentError,
-    AuthenticationError,
-    WebhookError,
 )
 
 
@@ -260,7 +261,7 @@ def test_get_oauth_token_no_credentials(caplog):
 
 def test_import_structure():
     """Test that all expected functions can be imported."""
-    from azsubay.pay.payments import send_payment, stk_push, b2c_payout, verify_webhook
+    from azsubay.pay.payments import b2c_payout, send_payment, stk_push, verify_webhook
 
     # Test that functions are callable
     assert callable(send_payment)
@@ -272,9 +273,9 @@ def test_import_structure():
 def test_pay_init_module_functions():
     """Test functions exposed directly in azsubay.pay.__init__."""
     from azsubay.pay import (
-        get_supported_telcos,
         get_payment_limits,
         get_payment_status_codes,
+        get_supported_telcos,
     )
 
     telcos = get_supported_telcos()
@@ -292,7 +293,7 @@ def test_pay_init_module_functions():
 
 def test_legacy_payment_functions(requests_mock):
     """Test backward compatibility with legacy payment function names."""
-    from azsubay.pay.payments import make_payment, initiate_stk_push, process_b2c_payout
+    from azsubay.pay.payments import initiate_stk_push, make_payment, process_b2c_payout
 
     # Mock endpoints
     requests_mock.get(

@@ -10,9 +10,9 @@ Provides CLI commands for common AZsubay operations including:
 """
 
 import argparse
-import sys
 import json
-from typing import Dict, Any, Optional
+import sys
+from typing import Any, Dict, Optional
 
 try:
     import azsubay
@@ -46,6 +46,7 @@ def show_info(args) -> None:
 def validate_config(args) -> None:
     """Validate configuration for each module."""
     import os
+
     from azsubay.pay import get_config as get_pay_config
     from azsubay.utils import generate_signature
 
@@ -122,7 +123,7 @@ def test_modules(args) -> None:
     # Test imports
     print("\n📦 Testing Imports:")
     try:
-        from azsubay import pay, kyc, ussd, utils
+        from azsubay import kyc, pay, ussd, utils
 
         print("  ✅ Main modules imported successfully")
     except ImportError as e:

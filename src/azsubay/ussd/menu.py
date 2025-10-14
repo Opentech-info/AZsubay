@@ -9,13 +9,13 @@ Core USSD functionality for menu navigation and session management including:
 - Session expiration and cleanup
 """
 
-import os
 import json
-import time
 import logging
+import os
 import secrets
-from typing import Dict, Any, Optional, List, Union
+import time
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Union
 
 try:
     import redis

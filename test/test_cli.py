@@ -3,9 +3,11 @@ Tests for AZsubay Command Line Interface
 """
 
 import argparse
-import pytest
-from unittest.mock import patch
 import os
+from unittest.mock import patch
+
+import pytest
+
 from azsubay import cli
 
 

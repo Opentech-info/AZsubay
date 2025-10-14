@@ -15,7 +15,7 @@ __email__ = "AZsubay@protonmail.com"
 __description__ = "Unified SDK for payments, KYC, and USSD integrations"
 
 # Make all modules available for Django-style imports
-from . import pay, kyc, ussd, utils
+from . import kyc, pay, ussd, utils
 
 # Define what's available when using `from azsubay import *`
 __all__ = ["pay", "kyc", "ussd", "utils"]

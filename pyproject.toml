@@ -58,6 +58,7 @@ dev = [
     "isort>=5.0",
     "flake8>=5.0",
     "mypy>=0.991",
+    "pre-commit>=3.0",
     "build>=0.8",
     "twine>=4.0",
 ]

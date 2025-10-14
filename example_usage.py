@@ -17,7 +17,7 @@ def main():
     print("\n💳 PAYMENT MODULE")
     print("-" * 20)
 
-    from azsubay.pay import send_payment, stk_push, b2c_payout
+    from azsubay.pay import b2c_payout, send_payment, stk_push
 
     # Basic payment (from the spec example)
     print("1. Basic Payment:")
@@ -42,7 +42,7 @@ def main():
     print("\n🆔 KYC MODULE")
     print("-" * 20)
 
-    from azsubay.kyc import verify_identity, submit_documents, check_status
+    from azsubay.kyc import check_status, submit_documents, verify_identity
 
     print("1. Identity Verification:")
     result = verify_identity("SmileID", "USER123", "passport")
@@ -68,7 +68,7 @@ def main():
     print("\n📱 USSD MODULE")
     print("-" * 20)
 
-    from azsubay.ussd import start_session, navigate_menu, end_session
+    from azsubay.ussd import end_session, navigate_menu, start_session
 
     print("1. Start Session:")
     session = start_session("+254712345678")
@@ -100,16 +100,16 @@ def main():
     print("-" * 20)
 
     from azsubay.utils import (
+        decrypt_data,
+        encrypt_data,
         generate_signature,
         verify_signature,
-        encrypt_data,
-        decrypt_data,
     )
     from azsubay.utils.crypto import (
-        hash_data,
-        generate_secure_token,
-        validate_phone_number,
         format_amount,
+        generate_secure_token,
+        hash_data,
+        validate_phone_number,
     )
 
     print("1. Signature Generation & Verification:")
@@ -179,7 +179,7 @@ def main():
 
     print("1. Django-style imports:")
     try:
-        from azsubay import pay, kyc, ussd, utils
+        from azsubay import kyc, pay, ussd, utils
 
         print("   ✅ Successfully imported modules: pay, kyc, ussd, utils")
     except ImportError as e:
@@ -187,8 +187,8 @@ def main():
 
     print("\n2. Module-specific imports:")
     try:
-        from azsubay.pay import send_payment
         from azsubay.kyc import verify_identity
+        from azsubay.pay import send_payment
         from azsubay.ussd import start_session
         from azsubay.utils import generate_signature
 
@@ -198,8 +198,8 @@ def main():
 
     print("\n3. Direct function imports:")
     try:
-        from azsubay.pay.payments import send_payment
         from azsubay.kyc.verify import verify_identity
+        from azsubay.pay.payments import send_payment
         from azsubay.ussd.menu import start_session
         from azsubay.utils.crypto import generate_signature
 

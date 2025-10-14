@@ -2,17 +2,18 @@
 Tests for AZsubay KYC Module
 """
 
-import os
 import base64
+import os
 
 import pytest
+
 from azsubay.kyc import (
-    verify_identity,
-    submit_documents,
-    check_status,
+    DocumentError,
     ProviderError,
     VerificationError,
-    DocumentError,
+    check_status,
+    submit_documents,
+    verify_identity,
 )
 
 
@@ -80,7 +81,7 @@ def test_different_providers():
 
 def test_legacy_functions():
     """Test backward compatibility with legacy function names."""
-    from azsubay.kyc.verify import kyc_verify, kyc_submit, kyc_status
+    from azsubay.kyc.verify import kyc_status, kyc_submit, kyc_verify
 
     # Test legacy verify function
     result = kyc_verify("SmileID", "LEGACY_USER", "id_card")
@@ -104,7 +105,7 @@ def test_legacy_functions():
 
 def test_import_structure():
     """Test that all expected functions can be imported."""
-    from azsubay.kyc.verify import verify_identity, submit_documents, check_status
+    from azsubay.kyc.verify import check_status, submit_documents, verify_identity
 
     # Test that functions are callable
     assert callable(verify_identity)
@@ -195,7 +196,7 @@ def test_kyc_provider_config_missing_keys(monkeypatch):
 
 def test_kyc_make_provider_request_api_error(requests_mock):
     """Test _make_provider_request error handling."""
-    from azsubay.kyc.verify import _make_provider_request, ProviderError
+    from azsubay.kyc.verify import ProviderError, _make_provider_request
 
     # Mock a 500 error from the provider API
     requests_mock.post(
@@ -234,10 +235,10 @@ def test_verify_identity_general_exception(monkeypatch):
 def test_kyc_init_module_functions():
     """Test functions exposed directly in azsubay.kyc.__init__."""
     from azsubay.kyc import (
-        get_supported_providers,
-        get_supported_document_types,
-        get_verification_status_codes,
         get_provider_config,
+        get_supported_document_types,
+        get_supported_providers,
+        get_verification_status_codes,
     )
 
     providers = get_supported_providers()

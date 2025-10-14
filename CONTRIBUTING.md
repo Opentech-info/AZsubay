@@ -55,10 +55,15 @@ conda activate azsubay
 ### Install Dependencies
 
 ```bash
-# Install in development mode with dev dependencies
-pip install -e .[dev]
+# Install in editable mode with dev and test dependencies
+pip install -e .[dev,test]
+```
 
-# Or install test dependencies only
+### Set Up Pre-commit Hooks
+
+```bash
+# Install the git hooks
+pre-commit install
 pip install -e .[test]
 ```
 

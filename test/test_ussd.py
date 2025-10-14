@@ -3,20 +3,21 @@ Tests for AZsubay USSD Module
 """
 
 import os
-from unittest.mock import patch, MagicMock
+import time
+from unittest.mock import MagicMock, patch
 
 import pytest
-import time
 import redis
+
 import azsubay
 from azsubay.ussd import (
-    start_session,
-    navigate_menu,
-    end_session,
-    SessionError,
     InputError,
     MenuError,
+    SessionError,
     USSDError,
+    end_session,
+    navigate_menu,
+    start_session,
 )
 
 
@@ -340,11 +341,11 @@ def test_ussd_menu_confirm_airtime_cancel():
 def test_ussd_init_module_functions():
     """Test functions exposed directly in azsubay.ussd.__init__."""
     from azsubay.ussd import (
-        get_supported_languages,
-        get_session_timeout,
         get_max_sessions,
-        get_session_status_codes,
         get_menu_structure,
+        get_session_status_codes,
+        get_session_timeout,
+        get_supported_languages,
     )
 
     languages = get_supported_languages()
