@@ -7,7 +7,6 @@ on:
     branches: [ main ]
   workflow_dispatch: # Allows manual triggering
 
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -16,45 +15,45 @@ jobs:
         python-version: [3.9, "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e .[dev,test]
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev,test]
 
-    - name: Lint with flake8
-      run: |
-        flake8 azsubay test --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 azsubay test --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+      - name: Lint with flake8
+        run: |
+          flake8 . test --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . test --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
 
-    - name: Format check with black
-      run: |
-        black --check azsubay test
+      - name: Format check with black
+        run: |
+          black --check .
 
-    - name: Import sort check with isort
-      run: |
-        isort --check-only azsubay test
+      - name: Import sort check with isort
+        run: |
+          isort --check-only .
 
-    - name: Type check with mypy
-      run: |
-        mypy azsubay
+      - name: Type check with mypy
+        run: |
+          mypy .
 
-    - name: Test with pytest
-      run: |
-        pytest --cov=azsubay --cov-report=xml --cov-report=term-missing
+      - name: Test with pytest
+        run: |
+          pytest --cov=. --cov-report=xml --cov-report=term-missing
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
 
   build:
     needs: test
@@ -62,31 +61,31 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.9"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
 
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
 
-    - name: Build package
-      run: |
-        python -m build
+      - name: Build package
+        run: |
+          python -m build
 
-    - name: Check package
-      run: |
-        twine check dist/*
+      - name: Check package
+        run: |
+          twine check dist/*
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: dist
-        path: dist/
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/
 
   publish-to-testpypi:
     needs: build
@@ -99,18 +98,18 @@ jobs:
       id-token: write # For trusted publishing
 
     steps:
-    - name: Download build artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: dist
-        path: dist/
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist/
 
-    - name: Publish to TestPyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
 
   publish:
     needs: build
@@ -118,21 +117,21 @@ jobs:
     if: github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release:')
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.9"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: dist
-        path: dist/
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist/
 
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
