@@ -1,0 +1,77 @@
+{
+  "menus": {
+    "root": {
+      "type": "static",
+      "text_en": "Welcome to AZsubay:\n1. Send Money\n2. Check Balance\n3. Pay Bill\n4. My Account",
+      "text_sw": "Karibu AZsubay:\n1. Tuma Pesa\n2. Angalia Salio\n3. Lipa Bili\n4. Akaunti Yangu",
+      "options": {
+        "1": "send_money_phone_input",
+        "2": "check_balance_display",
+        "3": "pay_bill_number_input",
+        "4": "my_account_menu"
+      }
+    },
+    "send_money_phone_input": {
+      "type": "input",
+      "text_en": "Enter recipient phone number:",
+      "text_sw": "Weka namba ya simu ya mpokeaji:",
+      "variable": "recipient_phone",
+      "next_menu": "send_money_amount_input"
+    },
+    "send_money_amount_input": {
+      "type": "input",
+      "text_en": "Enter amount:",
+      "text_sw": "Weka kiasi:",
+      "variable": "amount",
+      "next_menu": "send_money_confirm"
+    },
+    "send_money_confirm": {
+      "type": "static",
+      "text_en": "Send {amount} to {recipient_phone}?\n1. Confirm\n0. Cancel",
+      "text_sw": "Unatuma {amount} kwenda {recipient_phone}?\n1. Thibitisha\n0. Futa",
+      "options": {
+        "1": "send_money_process",
+        "0": "root"
+      }
+    },
+    "send_money_process": {
+      "type": "final",
+      "action": "send_payment",
+      "text_en": "Your request to send {amount} to {recipient_phone} is being processed. You will receive an SMS confirmation.",
+      "text_sw": "Ombi lako la kutuma {amount} kwenda {recipient_phone} linashughulikiwa. Utapokea SMS ya uthibitisho."
+    },
+    "check_balance_display": {
+      "type": "final",
+      "action": "get_balance",
+      "text_en": "Your current balance is {balance}.",
+      "text_sw": "Salio lako la sasa ni {balance}."
+    },
+    "pay_bill_number_input": {
+      "type": "input",
+      "text_en": "Enter Paybill number:",
+      "text_sw": "Weka namba ya malipo:",
+      "variable": "paybill_number",
+      "next_menu": "pay_bill_account_input"
+    },
+    "pay_bill_account_input": {
+      "type": "input",
+      "text_en": "Enter Account number:",
+      "text_sw": "Weka namba ya akaunti:",
+      "variable": "account_number",
+      "next_menu": "pay_bill_amount_input"
+    },
+    "pay_bill_amount_input": {
+      "type": "input",
+      "text_en": "Enter amount:",
+      "text_sw": "Weka kiasi:",
+      "variable": "amount",
+      "next_menu": "pay_bill_process"
+    },
+    "pay_bill_process": {
+      "type": "final",
+      "action": "stk_push",
+      "text_en": "A payment request of {amount} for account {account_number} is being sent to your phone. Please enter your PIN to confirm.",
+      "text_sw": "Ombi la malipo la {amount} kwa akaunti {account_number} linatumwa kwa simu yako. Tafadhali weka PIN yako kuthibitisha."
+    }
+  }
+}

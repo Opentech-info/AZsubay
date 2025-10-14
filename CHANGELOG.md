@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added
+- **B2C Credential Generation**: Added a utility function `create_b2c_credential` to generate the required RSA-encrypted security credential for B2C payouts.
+
+### Changed
+- **Production-Ready Payments**: The `pay` module is now production-ready.
+  - Removed all hardcoded mock values for credentials, shortcodes, and URLs.
+  - All payment parameters are now configurable via environment variables (e.g., `TELCO_STK_SHORTCODE`, `TELCO_B2C_INITIATOR_NAME`).
+  - Implemented dynamic password generation for STK Push transactions.
+  - Implemented in-memory caching for OAuth tokens to improve performance and avoid rate-limiting.
+  - The `send_payment` function is now a functional alias for `b2c_payout`.
+- **Configuration**: Expanded environment variable support to cover all necessary credentials for live transactions.
+- **Documentation**: Updated `README.md` with instructions for B2C credential generation and a complete list of environment variables.
  
 ## [0.1.1] - 2025-01-28
  

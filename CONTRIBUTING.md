@@ -133,6 +133,14 @@ azsubay/
 - Use environment variables for configuration
 - Provide sensible defaults
 - Validate configuration values
+- For a full local testing environment, you will need to set the following variables:
+  - `TELCO_CONSUMER_KEY`, `TELCO_CONSUMER_SECRET`, `TELCO_OAUTH_URL`
+  - `TELCO_STK_PUSH_URL`, `TELCO_STK_SHORTCODE`, `TELCO_STK_PASSKEY`
+  - `TELCO_B2C_URL`, `TELCO_B2C_SHORTCODE`, `TELCO_B2C_INITIATOR_NAME`, `TELCO_B2C_SECURITY_CREDENTIAL`
+  - `TELCO_CALLBACK_URL`, `TELCO_B2C_RESULT_URL`, `TELCO_B2C_TIMEOUT_URL`
+  - `WEBHOOK_SHARED_SECRET`
+  - `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`
+  - KYC provider keys (`SMILEID_API_KEY`, etc.)
 - Don't commit sensitive data
 
 ### Error Handling

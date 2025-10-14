@@ -12,34 +12,35 @@ from azsubay import cli
 @pytest.fixture
 def mock_args():
     """Fixture to mock command line arguments."""
+
     def _mock_args(command=None, version=False):
-        with patch('argparse.ArgumentParser.parse_args') as mock_parse_args:
+        with patch("argparse.ArgumentParser.parse_args") as mock_parse_args:
             mock_parse_args.return_value = argparse.Namespace(
-                command=command,
-                version=version
+                command=command, version=version
             )
             yield
 
     import argparse
+
     return _mock_args
 
 
 def test_cli_version(capsys):
     """Test the --version flag."""
-    with patch.object(cli.sys, 'argv', ['azsubay', '--version']):
+    with patch.object(cli.sys, "argv", ["azsubay", "--version"]):
         with pytest.raises(SystemExit) as e:
             cli.main()
         assert e.value.code == 0
-    
+
     captured = capsys.readouterr()
     assert "AZsubay v" in captured.out
 
 
 def test_cli_info(capsys):
     """Test the 'info' command."""
-    with patch.object(cli.sys, 'argv', ['azsubay', 'info']):
+    with patch.object(cli.sys, "argv", ["azsubay", "info"]):
         cli.main()
-    
+
     captured = capsys.readouterr()
     assert "AZsubay Package Information" in captured.out
     assert "Version:" in captured.out
@@ -53,13 +54,13 @@ def test_cli_validate_config(capsys, monkeypatch):
     monkeypatch.setenv("REDIS_HOST", "test_redis")
 
     # Patch Redis to avoid a real connection
-    with patch('azsubay.ussd.menu.redis') as mock_redis:
+    with patch("azsubay.ussd.menu.redis") as mock_redis:
         # Ensure the redis object is not None so RedisSessionStore initializes
         mock_redis.Redis.return_value.ping.return_value = True
-        
-        with patch.object(cli.sys, 'argv', ['azsubay', 'validate-config']):
-            cli.main() # This will now use the mocked RedisSessionStore
-    
+
+        with patch.object(cli.sys, "argv", ["azsubay", "validate-config"]):
+            cli.main()  # This will now use the mocked RedisSessionStore
+
     captured = capsys.readouterr()
     assert "Validating AZsubay Configuration" in captured.out
     assert "TELCO_CONSUMER_KEY: [SET]" in captured.out
@@ -71,11 +72,20 @@ def test_cli_validate_config(capsys, monkeypatch):
 def test_cli_test_modules(capsys, requests_mock):
     """Test the 'test-modules' command."""
     # Mock the API calls made by the test-modules command
-    requests_mock.get("https://example-telco/oauth/token", json={"access_token": "test_token"})
-    requests_mock.post("https://example-telco/b2c", json={"ConversationID": "mock_conv_id", "ResponseCode": "0", "status": "SUCCESS"})
+    requests_mock.get(
+        "https://example-telco/oauth/token", json={"access_token": "test_token"}
+    )
+    requests_mock.post(
+        "https://example-telco/b2c",
+        json={
+            "ConversationID": "mock_conv_id",
+            "ResponseCode": "0",
+            "status": "SUCCESS",
+        },
+    )
 
-    with patch('azsubay.ussd.menu.session_store'): # Mock ussd session store
-        with patch.object(cli.sys, 'argv', ['azsubay', 'test-modules']):
+    with patch("azsubay.ussd.menu.session_store"):  # Mock ussd session store
+        with patch.object(cli.sys, "argv", ["azsubay", "test-modules"]):
             cli.main()
 
     captured = capsys.readouterr()
@@ -89,9 +99,9 @@ def test_cli_test_modules(capsys, requests_mock):
 
 def test_cli_usage(capsys):
     """Test the 'usage' command."""
-    with patch.object(cli.sys, 'argv', ['azsubay', 'usage']):
+    with patch.object(cli.sys, "argv", ["azsubay", "usage"]):
         cli.main()
-    
+
     captured = capsys.readouterr()
     assert "AZsubay Usage Examples" in captured.out
     assert "💳 Payment Examples:" in captured.out
@@ -100,9 +110,9 @@ def test_cli_usage(capsys):
 
 def test_cli_no_command(capsys):
     """Test the CLI with no command, which should show help."""
-    with patch.object(cli.sys, 'argv', ['azsubay']):
+    with patch.object(cli.sys, "argv", ["azsubay"]):
         cli.main()
-    
+
     captured = capsys.readouterr()
     assert "usage: azsubay" in captured.out
     assert "Examples:" in captured.out

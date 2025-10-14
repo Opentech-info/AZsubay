@@ -48,31 +48,34 @@ def validate_config(args) -> None:
     import os
     from azsubay.pay import get_config as get_pay_config
     from azsubay.utils import generate_signature
-    
+
     print("Validating AZsubay Configuration")
     print("=" * 40)
-    
+
     # Check payment configuration
     print("\n💳 Payment Configuration:")
     pay_config = get_pay_config()
-    required_pay_keys = ['consumer_key', 'consumer_secret', 'webhook_secret']
-    
+    required_pay_keys = ["consumer_key", "consumer_secret", "webhook_secret"]
+
     for key in required_pay_keys:
-        value = pay_config.get(key, '')
+        value = pay_config.get(key, "")
         if value:
             print(f"  ✅ {key}: [SET]")
         else:
             print(f"  ❌ {key}: [MISSING]")
-    
+
     # Check USSD (Redis) configuration
     print("\n📱 USSD (Redis) Configuration:")
     try:
         from azsubay.ussd.menu import session_store
-        if session_store and hasattr(session_store, 'client'):
+
+        if session_store and hasattr(session_store, "client"):
             session_store.client.ping()
-            print(f"  ✅ Redis Connection: [OK] ({session_store.redis_host}:{session_store.redis_port})")
+            print(
+                f"  ✅ Redis Connection: [OK] ({session_store.redis_host}:{session_store.redis_port})"
+            )
         elif session_store is None:
-             print("  ⚠️  Redis Connection: [NOT CONFIGURED - using mock store]")
+            print("  ⚠️  Redis Connection: [NOT CONFIGURED - using mock store]")
         else:
             print("  ❌ Redis Connection: [FAILED]")
     except Exception as e:
@@ -81,24 +84,24 @@ def validate_config(args) -> None:
     # Check environment variables
     print("\n🔧 Environment Variables:")
     env_vars = [
-        'TELCO_CONSUMER_KEY',
-        'TELCO_CONSUMER_SECRET', 
-        'WEBHOOK_SHARED_SECRET',
-        'TELCO_OAUTH_URL',
-        'TELCO_STK_PUSH_URL',
-        'TELCO_B2C_URL'
+        "TELCO_CONSUMER_KEY",
+        "TELCO_CONSUMER_SECRET",
+        "WEBHOOK_SHARED_SECRET",
+        "TELCO_OAUTH_URL",
+        "TELCO_STK_PUSH_URL",
+        "TELCO_B2C_URL",
     ]
-    redis_vars = ['REDIS_HOST', 'REDIS_PORT', 'REDIS_DB']
-    
+    redis_vars = ["REDIS_HOST", "REDIS_PORT", "REDIS_DB"]
+
     all_vars = env_vars + redis_vars
-    
+
     for var in all_vars:
-        value = os.getenv(var, '')
+        value = os.getenv(var, "")
         if value:
             print(f"  ✅ {var}: [SET]")
         else:
             print(f"  ⚠️  {var}: [NOT SET - using defaults]")
-    
+
     # Test crypto functions
     print("\n🔐 Cryptographic Functions:")
     try:
@@ -107,7 +110,7 @@ def validate_config(args) -> None:
         print(f"  ✅ Signature generation: [WORKING]")
     except Exception as e:
         print(f"  ❌ Signature generation: [ERROR - {e}]")
-    
+
     print("\nConfiguration validation complete!")
 
 
@@ -115,54 +118,59 @@ def test_modules(args) -> None:
     """Test basic functionality of all modules."""
     print("Testing AZsubay Modules")
     print("=" * 40)
-    
+
     # Test imports
     print("\n📦 Testing Imports:")
     try:
         from azsubay import pay, kyc, ussd, utils
+
         print("  ✅ Main modules imported successfully")
     except ImportError as e:
         print(f"  ❌ Import failed: {e}")
         return
-    
+
     # Test payment module
     print("\n💳 Testing Payment Module:")
     try:
         from azsubay.pay import send_payment
+
         result = send_payment("+255700000000", 100, "TEST")
         print(f"  ✅ send_payment: [WORKING] - {result['status']}")
     except Exception as e:
         print(f"  ❌ send_payment: [ERROR - {e}]")
-    
+
     # Test KYC module
     print("\n🆔 Testing KYC Module:")
     try:
         from azsubay.kyc import verify_identity
+
         result = verify_identity("SmileID", "TEST_USER", "passport")
         print(f"  ✅ verify_identity: [WORKING] - {result['status']}")
     except Exception as e:
         print(f"  ❌ verify_identity: [ERROR - {e}]")
-    
+
     # Test USSD module
     print("\n📱 Testing USSD Module:")
     try:
         from azsubay.ussd import start_session
+
         result = start_session("+254712345678")
         print(f"  ✅ start_session: [WORKING] - Session {result['session_id'][:8]}...")
     except Exception as e:
         print(f"  ❌ start_session: [ERROR - {e}]")
-    
+
     # Test utils module
     print("\n🔐 Testing Utils Module:")
     try:
         from azsubay.utils import generate_signature, validate_phone_number
+
         signature = generate_signature({"test": "data"}, "test_key")
         is_valid = validate_phone_number("+254712345678")
         print(f"  ✅ generate_signature: [WORKING]")
         print(f"  ✅ validate_phone_number: [WORKING] - {is_valid}")
     except Exception as e:
         print(f"  ❌ Utils functions: [ERROR - {e}]")
-    
+
     print("\nModule testing complete!")
 
 
@@ -170,27 +178,27 @@ def show_usage(args) -> None:
     """Show usage examples."""
     print("AZsubay Usage Examples")
     print("=" * 40)
-    
+
     print("\n💳 Payment Examples:")
     print("  from azsubay.pay import send_payment, stk_push")
     print("  result = send_payment('+255700000000', 5000, 'INV123')")
     print("  result = stk_push('254712345678', 100, 'ORDER123')")
-    
+
     print("\n🆔 KYC Examples:")
     print("  from azsubay.kyc import verify_identity, submit_documents")
     print("  result = verify_identity('SmileID', 'USER123', 'passport')")
     print("  result = submit_documents('Veriff', 'USER123', 'id_card', data)")
-    
+
     print("\n📱 USSD Examples:")
     print("  from azsubay.ussd import start_session, navigate_menu")
     print("  session = start_session('+254712345678')")
     print("  response = navigate_menu(session['session_id'], '1')")
-    
+
     print("\n🔐 Utils Examples:")
     print("  from azsubay.utils import generate_signature, encrypt_data")
     print("  signature = generate_signature(data, secret_key)")
     print("  encrypted = encrypt_data('sensitive data', password)")
-    
+
     print("\n📦 Import Styles:")
     print("  from azsubay import pay, kyc, ussd, utils")
     print("  from azsubay.pay import send_payment")
@@ -209,7 +217,7 @@ Examples:
   azsubay validate-config
   azsubay test-modules
   azsubay usage
-        """
+        """,
     )
 
     # The 'version' action is a standard way to handle this
@@ -220,10 +228,15 @@ Examples:
         version=f"AZsubay v{azsubay.__version__}",
         help="Show package version information and exit",
     )
-    parser.add_argument("command", nargs="?", choices=["info", "validate-config", "test-modules", "usage"], help="Command to execute")
-    
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=["info", "validate-config", "test-modules", "usage"],
+        help="Command to execute",
+    )
+
     args = parser.parse_args()
-    
+
     if args.command == "info":
         show_info(args)
     elif args.command == "validate-config":

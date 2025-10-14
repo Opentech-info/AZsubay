@@ -26,10 +26,9 @@ pip install azsubay
 ```python
 from azsubay.pay import send_payment
 
-# Simple payment (from the spec example)
+# Simple B2C payment
 resp = send_payment("+255700000000", 5000, "INV123")
-print(resp) # Mocked response
-# Output: {'ResponseCode': '0', 'phone': '+255700000000', 'amount': 5000.0, 'reference': 'INV123', ...}
+print(resp)
 
 # Advanced STK Push
 from azsubay.pay import stk_push, b2c_payout
@@ -160,15 +159,37 @@ from azsubay.utils.crypto import generate_signature
 
 ## Configuration
 
-Set environment variables for telco integration:
+### B2C Security Credential Generation
+
+For B2C (Business-to-Customer) payouts, telcos require the initiator's password to be RSA-encrypted with a public key they provide. This library includes a utility to generate this credential.
+
+**This is a one-time setup step.** You should generate the credential and store it securely as an environment variable.
+
+1.  Obtain the public key certificate file (e.g., `cert.cer`) from your payment provider.
+2.  Create a Python script to generate the credential:
+
+```python
+# create_credential.py
+from azsubay.pay import create_b2c_credential
+
+initiator_password = "YourPlainTextPassword"
+public_key_path = "/path/to/your/cert.cer"
+
+security_credential = create_b2c_credential(initiator_password, public_key_path)
+print(security_credential)
+```
+
+3.  Run the script (`python create_credential.py`) and copy the output.
+4.  Set the output as the `TELCO_B2C_SECURITY_CREDENTIAL` environment variable.
+
+### Environment Variables
 
 ```bash
-# Payment Configuration
+# --- General Payment Configuration ---
 TELCO_CONSUMER_KEY=your_consumer_key
 TELCO_CONSUMER_SECRET=your_consumer_secret
 TELCO_OAUTH_URL=https://example-telco/oauth/token
-TELCO_STK_PUSH_URL=https://example-telco/stkpush
-TELCO_B2C_URL=https://example-telco/b2c
+REQUEST_TIMEOUT=30
 
 # Security Configuration
 WEBHOOK_SHARED_SECRET=your_webhook_secret
@@ -178,6 +199,21 @@ WHITELISTED_IPS=127.0.0.1,192.168.1.1
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
+
+# --- STK Push Configuration ---
+TELCO_STK_PUSH_URL=https://example-telco/stkpush
+TELCO_STK_SHORTCODE=your_business_shortcode
+TELCO_STK_PASSKEY=your_stk_passkey
+TELCO_CALLBACK_URL=https://your-domain.com/stk-callback
+
+# --- B2C Payout Configuration ---
+TELCO_B2C_URL=https://example-telco/b2c
+TELCO_B2C_SHORTCODE=your_b2c_shortcode
+TELCO_B2C_INITIATOR_NAME=your_initiator_name
+TELCO_B2C_SECURITY_CREDENTIAL=your_generated_encrypted_credential # See generation steps above
+TELCO_B2C_PUBLIC_KEY_CERT_PATH=/path/to/your/cert.cer # Only needed for generating the credential
+TELCO_B2C_RESULT_URL=https://your-domain.com/b2c-result
+TELCO_B2C_TIMEOUT_URL=https://your-domain.com/b2c-timeout
 ```
 
 ## Requirements
@@ -200,14 +236,6 @@ pytest tests/
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes following the package structure
-4. Add tests for new functionality
-5. Submit a pull request
 
 ## Professional Benefits
 
