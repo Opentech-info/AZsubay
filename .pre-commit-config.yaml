@@ -2,11 +2,11 @@
 # See https://pre-commit.com/hooks.html for more hooks
 
 default_language_version:
-    python: python3.9
+    python: python3.12
 
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
@@ -14,14 +14,14 @@ repos:
     -   id: check-added-large-files
 
 -   repo: https://github.com/psf/black
-    rev: 24.4.2
+    rev: 25.9.0
     hooks:
     -   id: black
         # The line-length is already set in pyproject.toml, but specifying it here ensures consistency.
         args: [--line-length=88]
 
 -   repo: https://github.com/pycqa/isort
-    rev: 5.13.2
+    rev: 7.0.0
     hooks:
     -   id: isort
         name: isort (python)
@@ -29,12 +29,12 @@ repos:
         args: ["--profile", "black", "--filter-files"]
 
 -   repo: https://github.com/pycqa/flake8
-    rev: 7.1.0
+    rev: 7.3.0
     hooks:
     -   id: flake8
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.1
+    rev: v1.18.2
     hooks:
     -   id: mypy
         # Pass dependencies to mypy to ensure it can find all modules
